@@ -6,3 +6,7 @@ authors = ["Danilo Bargen <mail@dbrgn.ch>"]
 [dependencies]
 futures = "0.1"
 hyper = "0.12"
+log = "0.4"
+
+[dev-dependencies]
+reqwest = "*"
