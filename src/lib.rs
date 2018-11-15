@@ -22,7 +22,15 @@ pub fn handler(req: Request<Body>) -> BoxFut {
     match req.headers().get(header::ACCEPT).and_then(|v| v.to_str().ok()) {
         Some(accept) if accept.starts_with("application/json") => {},
         _ => {
-            warn!("Received request without accept header");
+            warn!("Received request without valid accept header");
+            *response.status_mut() = StatusCode::BAD_REQUEST;
+            return Box::new(future::ok(response));
+        }
+    }
+    match req.headers().get(header::USER_AGENT).and_then(|v| v.to_str().ok()) {
+        Some(uagent) if uagent.contains("Threema") => {},
+        _ => {
+            warn!("Received request without valid user agent");
             *response.status_mut() = StatusCode::BAD_REQUEST;
             return Box::new(future::ok(response));
         }
