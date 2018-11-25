@@ -9,10 +9,15 @@ use hyper::rt::Future;
 use hyper::service::service_fn;
 use reqwest::{Client, header};
 
+const TEST_SERVER_CONFIG: rustysafe::ServerConfig = rustysafe::ServerConfig {
+    max_backup_bytes: 524288,
+    retention_days: 180,
+};
+
 /// Create a new test server instance and return the bound URL.
 fn testserver() -> (thread::JoinHandle<()>, String) {
     let addr = ([127, 0, 0, 1], 0).into();
-    let service = || service_fn(rustysafe::handler);
+    let service = || service_fn(|req| rustysafe::handler(req, TEST_SERVER_CONFIG));
     let server = Server::bind(&addr).serve(service);
     let port = server.local_addr().port();
     let handle = thread::spawn(move || {

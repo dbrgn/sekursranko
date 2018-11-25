@@ -2,6 +2,10 @@ extern crate futures;
 extern crate hyper;
 extern crate log;
 
+mod config;
+
+pub use config::ServerConfig;
+
 use futures::future;
 use hyper::{Body, Request, Response};
 use hyper::{Method, StatusCode};
@@ -10,19 +14,6 @@ use hyper::rt::Future;
 use log::warn;
 
 static VERSION: &str = env!("CARGO_PKG_VERSION");
-
-/// The server configuration.
-/// TODO: Serialize
-struct ServerConfig {
-    max_backup_bytes: u32,
-    retention_days: u32,
-}
-
-// TODO: Make configurable
-static SERVER_CONFIG: ServerConfig = ServerConfig {
-    max_backup_bytes: 524288,
-    retention_days: 180,
-};
 
 type BoxFut = Box<Future<Item=Response<Body>, Error=hyper::Error> + Send>;
 
@@ -42,7 +33,7 @@ macro_rules! require_accept_starts_with {
 }
 
 /// Main handler.
-pub fn handler(req: Request<Body>) -> BoxFut {
+pub fn handler(req: Request<Body>, config: ServerConfig) -> BoxFut {
     // Prepare response
     let mut response = Response::new(Body::empty());
 
@@ -58,7 +49,7 @@ pub fn handler(req: Request<Body>) -> BoxFut {
 
     match (req.method(), req.uri().path()) {
         (&Method::GET, "/") => handle_index(&mut response),
-        (&Method::GET, "/config") => handle_config(&req, &mut response),
+        (&Method::GET, "/config") => handle_config(&req, &mut response, &config),
         _ => handle_404(&mut response),
     }
     Box::new(future::ok(response))
@@ -68,14 +59,14 @@ fn handle_index(response: &mut Response<Body>) {
     *response.body_mut() = Body::from(format!("rustysafe {}", VERSION));
 }
 
-fn handle_config(request: &Request<Body>, response: &mut Response<Body>) {
+fn handle_config(request: &Request<Body>, response: &mut Response<Body>, config: &ServerConfig) {
     require_accept_starts_with!(request, response, "application/json");
 
     *response.status_mut() = StatusCode::OK;
     *response.body_mut() = Body::from(format!(
         "{{\"maxBackupBytes\": {}, \"retentionDays\": {}}}",
-        SERVER_CONFIG.max_backup_bytes,
-        SERVER_CONFIG.retention_days,
+        config.max_backup_bytes,
+        config.retention_days,
     ));
 }
 
