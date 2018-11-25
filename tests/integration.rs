@@ -87,5 +87,5 @@ fn config_ok() {
     let text = res.text().unwrap();
     println!("{}", text);
     assert_eq!(res.status().as_u16(), 200);
-    assert_eq!(text, "{\"maxBackupBytes\": 524288, \"retentionDays\": 180}");
+    assert_eq!(text, "{\"maxBackupBytes\":524288,\"retentionDays\":180}");
 }

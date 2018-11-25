@@ -1,6 +1,9 @@
 extern crate futures;
 extern crate hyper;
 extern crate log;
+extern crate serde;
+#[macro_use] extern crate serde_derive;
+extern crate serde_json;
 
 mod config;
 
@@ -11,7 +14,7 @@ use hyper::{Body, Request, Response};
 use hyper::{Method, StatusCode};
 use hyper::header;
 use hyper::rt::Future;
-use log::warn;
+use log::{warn, error};
 
 static VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -61,13 +64,16 @@ fn handle_index(response: &mut Response<Body>) {
 
 fn handle_config(request: &Request<Body>, response: &mut Response<Body>, config: &ServerConfig) {
     require_accept_starts_with!(request, response, "application/json");
-
+    let config_string = match serde_json::to_string(config) {
+        Ok(s) => s,
+        Err(e) => {
+            error!("Could not serialize server config: {}", e);
+            *response.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
+            return;
+        },
+    };
     *response.status_mut() = StatusCode::OK;
-    *response.body_mut() = Body::from(format!(
-        "{{\"maxBackupBytes\": {}, \"retentionDays\": {}}}",
-        config.max_backup_bytes,
-        config.retention_days,
-    ));
+    *response.body_mut() = Body::from(config_string);
 }
 
 fn handle_404(response: &mut Response<Body>) {
