@@ -1,6 +1,11 @@
 # rustysafe
 
-A simple Threema Safe server implementation written in Rust.
+An efficient and memory-safe Threema Safe server implementation
+written in Rust.
+
+Work in progress, does not work yet.
+
+This is a private project, not developed nor endorsed by Threema GmbH.
 
 
 ## License
