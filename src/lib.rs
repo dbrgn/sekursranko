@@ -8,7 +8,7 @@ extern crate serde_json;
 
 mod config;
 
-pub use config::ServerConfig;
+pub use config::{ServerConfig, ServerConfigPublic};
 
 use futures::future;
 use hyper::{Body, Request, Response};
@@ -84,7 +84,7 @@ fn handle_index(resp: &mut Response<Body>) {
 
 fn handle_config(req: &Request<Body>, resp: &mut Response<Body>, config: &ServerConfig) {
     require_accept_starts_with!(req, resp, "application/json");
-    let config_string = match serde_json::to_string(config) {
+    let config_string = match serde_json::to_string(&ServerConfigPublic::from(config)) {
         Ok(s) => s,
         Err(e) => {
             error!("Could not serialize server config: {}", e);

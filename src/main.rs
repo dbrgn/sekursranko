@@ -20,7 +20,7 @@ fn main() {
     let server = Server::bind(&addr)
         .serve(move || {
             let config_clone = config.clone();
-            service_fn(move |req| sekursranko::handler(req, config_clone))
+            service_fn(move |req| sekursranko::handler(req, config_clone.clone()))
         })
         .map_err(|e| eprintln!("Server error: {}", e));
 
