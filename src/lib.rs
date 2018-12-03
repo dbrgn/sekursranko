@@ -1,6 +1,7 @@
 extern crate futures;
 extern crate hyper;
 extern crate log;
+extern crate route_recognizer;
 extern crate serde;
 #[macro_use] extern crate serde_derive;
 extern crate serde_json;
@@ -15,8 +16,15 @@ use hyper::{Method, StatusCode};
 use hyper::header;
 use hyper::rt::Future;
 use log::{warn, error};
+use route_recognizer::{Router, Match};
 
 static VERSION: &str = env!("CARGO_PKG_VERSION");
+
+#[derive(Debug, Clone)]
+enum Handler {
+    Index,
+    Config,
+}
 
 type BoxFut = Box<Future<Item=Response<Body>, Error=hyper::Error> + Send>;
 
@@ -38,44 +46,58 @@ macro_rules! require_accept_starts_with {
 /// Main handler.
 pub fn handler(req: Request<Body>, config: ServerConfig) -> BoxFut {
     // Prepare response
-    let mut response = Response::new(Body::empty());
+    let mut resp = Response::new(Body::empty());
 
     // Verify headers
     match req.headers().get(header::USER_AGENT).and_then(|v| v.to_str().ok()) {
         Some(uagent) if uagent.contains("Threema") => {},
         _ => {
             warn!("Received request without valid user agent");
-            *response.status_mut() = StatusCode::BAD_REQUEST;
-            return Box::new(future::ok(response));
+            *resp.status_mut() = StatusCode::BAD_REQUEST;
+            return Box::new(future::ok(resp));
         }
     }
 
-    match (req.method(), req.uri().path()) {
-        (&Method::GET, "/") => handle_index(&mut response),
-        (&Method::GET, "/config") => handle_config(&req, &mut response, &config),
-        _ => handle_404(&mut response),
+    // Route to handlers // TODO: Don't construct inside handler
+    let mut router = Router::new();
+    router.add("/", Handler::Index);
+    router.add("/config", Handler::Config);
+
+    match req.method() {
+        &Method::GET => {
+            match router.recognize(req.uri().path()) {
+                Ok(Match { handler: Handler::Index, .. }) => handle_index(&mut resp),
+                Ok(Match { handler: Handler::Config, .. }) => handle_config(&req, &mut resp, &config),
+                Err(_) => handle_404(&mut resp),
+            };
+        }
+        _ => handle_404(&mut resp),
     }
-    Box::new(future::ok(response))
+
+    Box::new(future::ok(resp))
 }
 
-fn handle_index(response: &mut Response<Body>) {
-    *response.body_mut() = Body::from(format!("rustysafe {}", VERSION));
+fn handle_index(resp: &mut Response<Body>) {
+    *resp.body_mut() = Body::from(format!("rustysafe {}", VERSION));
 }
 
-fn handle_config(request: &Request<Body>, response: &mut Response<Body>, config: &ServerConfig) {
-    require_accept_starts_with!(request, response, "application/json");
+fn handle_config(req: &Request<Body>, resp: &mut Response<Body>, config: &ServerConfig) {
+    require_accept_starts_with!(req, resp, "application/json");
     let config_string = match serde_json::to_string(config) {
         Ok(s) => s,
         Err(e) => {
             error!("Could not serialize server config: {}", e);
-            *response.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
+            *resp.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
             return;
         },
     };
-    *response.status_mut() = StatusCode::OK;
-    *response.body_mut() = Body::from(config_string);
+    *resp.status_mut() = StatusCode::OK;
+    *resp.body_mut() = Body::from(config_string);
 }
 
-fn handle_404(response: &mut Response<Body>) {
-    *response.status_mut() = StatusCode::NOT_FOUND;
+fn handle_create_backup(req: &mut Request<Body>, resp: &mut Response<Body>) {
+}
+
+fn handle_404(resp: &mut Response<Body>) {
+    *resp.status_mut() = StatusCode::NOT_FOUND;
 }
