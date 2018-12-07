@@ -1,4 +1,4 @@
-# rustysafe
+# Sekurŝranko
 
 An efficient and memory-safe Threema Safe server implementation
 written in Rust.
@@ -6,6 +6,13 @@ written in Rust.
 Work in progress, does not work yet.
 
 This is a private project, not developed nor endorsed by Threema GmbH.
+
+
+## Name
+
+The name of this project is the Esperanto word for "safe". English-speaking
+people might recognize the "sekur-" prefix (-> secure), and German-speaking
+people might recognize the "-ŝranko" suffix (-> "Schrank", a cabinet).
 
 
 ## License

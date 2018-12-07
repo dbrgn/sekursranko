@@ -1,5 +1,5 @@
 [package]
-name = "rustysafe"
+name = "sekursranko"
 version = "0.1.0"
 authors = ["Danilo Bargen <mail@dbrgn.ch>"]
 

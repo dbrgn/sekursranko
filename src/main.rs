@@ -1,11 +1,11 @@
 extern crate hyper;
-extern crate rustysafe;
+extern crate sekursranko;
 
 use hyper::Server;
 use hyper::rt::Future;
 use hyper::service::service_fn;
 
-use rustysafe::ServerConfig;
+use sekursranko::ServerConfig;
 
 fn main() {
     let port = 3000;
@@ -20,7 +20,7 @@ fn main() {
     let server = Server::bind(&addr)
         .serve(move || {
             let config_clone = config.clone();
-            service_fn(move |req| rustysafe::handler(req, config_clone))
+            service_fn(move |req| sekursranko::handler(req, config_clone))
         })
         .map_err(|e| eprintln!("Server error: {}", e));
 

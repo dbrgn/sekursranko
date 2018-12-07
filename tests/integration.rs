@@ -1,6 +1,6 @@
 extern crate hyper;
 extern crate reqwest;
-extern crate rustysafe;
+extern crate sekursranko;
 
 use std::thread;
 
@@ -9,7 +9,7 @@ use hyper::rt::Future;
 use hyper::service::service_fn;
 use reqwest::{Client, header};
 
-const TEST_SERVER_CONFIG: rustysafe::ServerConfig = rustysafe::ServerConfig {
+const TEST_SERVER_CONFIG: sekursranko::ServerConfig = sekursranko::ServerConfig {
     max_backup_bytes: 524288,
     retention_days: 180,
 };
@@ -17,7 +17,7 @@ const TEST_SERVER_CONFIG: rustysafe::ServerConfig = rustysafe::ServerConfig {
 /// Create a new test server instance and return the bound URL.
 fn testserver() -> (thread::JoinHandle<()>, String) {
     let addr = ([127, 0, 0, 1], 0).into();
-    let service = || service_fn(|req| rustysafe::handler(req, TEST_SERVER_CONFIG));
+    let service = || service_fn(|req| sekursranko::handler(req, TEST_SERVER_CONFIG));
     let server = Server::bind(&addr).serve(service);
     let port = server.local_addr().port();
     let handle = thread::spawn(move || {
@@ -56,7 +56,7 @@ fn index_ok() {
     let text = res.text().unwrap();
     println!("{}", text);
     assert_eq!(res.status().as_u16(), 200);
-    assert_eq!(text, "rustysafe 0.1.0");
+    assert_eq!(text, "Sekurŝranko 0.1.0");
 }
 
 #[test]

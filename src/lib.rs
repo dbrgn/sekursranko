@@ -18,6 +18,7 @@ use hyper::rt::Future;
 use log::{warn, error};
 use route_recognizer::{Router, Match};
 
+static NAME: &str = "Sekurŝranko";
 static VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Debug, Clone)]
@@ -78,7 +79,7 @@ pub fn handler(req: Request<Body>, config: ServerConfig) -> BoxFut {
 }
 
 fn handle_index(resp: &mut Response<Body>) {
-    *resp.body_mut() = Body::from(format!("rustysafe {}", VERSION));
+    *resp.body_mut() = Body::from(format!("{} {}", NAME, VERSION));
 }
 
 fn handle_config(req: &Request<Body>, resp: &mut Response<Body>, config: &ServerConfig) {
