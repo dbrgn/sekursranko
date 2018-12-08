@@ -1,11 +1,12 @@
 use std::convert::From;
+use std::path::PathBuf;
 
 /// The server configuration.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone)]
 pub struct ServerConfig {
     pub max_backup_bytes: u32,
     pub retention_days: u32,
+    pub backup_dir: PathBuf,
 }
 
 #[derive(Debug, Copy, Clone, Serialize)]

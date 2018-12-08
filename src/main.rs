@@ -16,6 +16,7 @@ fn main() {
     let config: ServerConfig = ServerConfig {
         max_backup_bytes: 524288,
         retention_days: 180,
+        backup_dir: "backups".into(),
     };
     let server = Server::bind(&addr)
         .serve(move || {

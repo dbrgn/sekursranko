@@ -11,6 +11,8 @@ route-recognizer = "0.1"
 serde = "1.0"
 serde_derive = "*"
 serde_json = "1.0"
+tokio = "0.1"
 
 [dev-dependencies]
-reqwest = "*"
+reqwest = "0.9"
+tempfile = "3"
