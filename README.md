@@ -1,5 +1,7 @@
 # Sekurŝranko
 
+![Icon](safe.png)
+
 An efficient and memory-safe Threema Safe server implementation
 written in Rust.
 
