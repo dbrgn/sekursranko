@@ -5,6 +5,7 @@ authors = ["Danilo Bargen <mail@dbrgn.ch>"]
 
 [dependencies]
 futures = "0.1"
+futures-fs = "0.0.5"
 hyper = "0.12"
 log = "0.4"
 route-recognizer = "0.1"

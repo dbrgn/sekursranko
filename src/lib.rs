@@ -1,4 +1,5 @@
 extern crate futures;
+extern crate futures_fs;
 extern crate hyper;
 extern crate log;
 extern crate route_recognizer;
@@ -9,15 +10,16 @@ extern crate tokio;
 
 mod config;
 
-pub use config::{ServerConfig, ServerConfigPublic};
-
 use futures::future;
+use futures_fs::FsPool;
 use hyper::{Body, Request, Response};
 use hyper::{Method, StatusCode};
 use hyper::header;
 use hyper::rt::Future;
 use log::{warn, error};
 use route_recognizer::{Router, Match};
+
+pub use config::{ServerConfig, ServerConfigPublic};
 
 static NAME: &str = "Sekurŝranko";
 static VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -129,31 +131,21 @@ fn handle_get_backup(
     config: &ServerConfig,
     backup_id: &str,
 ) {
-    println!("xxx");
-
     // Validate headers
     require_accept_is!(req, resp, "application/octet-stream");
 
     // Validate params
     if !backup_id_valid(backup_id) {
         warn!("Download of backup with invalid id was requested: {}", backup_id);
-        println!("yyy");
         *resp.status_mut() = StatusCode::NOT_FOUND;
         return;
     }
 
     let backup_path = config.backup_dir.join(backup_id);
-    println!("Backup path: {:?}", backup_path);
     if backup_path.exists() && backup_path.is_file() {
-        let chunks = vec![
-            "hello",
-            " ",
-            "world",
-        ];
-        let stream = futures::stream::iter_ok::<_, ::std::io::Error>(chunks);
+        let pool = FsPool::default(); // TODO: Single pool instance?
+        let stream = pool.read(backup_path, Default::default());
         *resp.body_mut() = Body::wrap_stream(stream);
-//            tokio::fs::File::open(backup_path)
-//        );
     } else {
         *resp.status_mut() = StatusCode::NOT_FOUND;
         return;
