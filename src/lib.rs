@@ -10,13 +10,16 @@ extern crate tokio;
 
 mod config;
 
+use std::sync::Arc;
+
 use futures::future;
 use futures_fs::FsPool;
 use hyper::{Body, Request, Response};
 use hyper::{Method, StatusCode};
 use hyper::header;
 use hyper::rt::Future;
-use log::{warn, error};
+use hyper::service::{Service, NewService};
+use log::{trace, warn, error};
 use route_recognizer::{Router, Match};
 
 pub use config::{ServerConfig, ServerConfigPublic};
@@ -58,8 +61,51 @@ macro_rules! require_accept_is {
     }
 }
 
+pub type ResponseFuture = Box<Future<Item = Response<Body>, Error = hyper::Error> + Send>;
+
+#[derive(Debug, Clone)]
+pub struct BackupService {
+    config: ServerConfig,
+    fs_pool: Arc<FsPool>,
+}
+
+impl BackupService {
+    pub fn new(config: ServerConfig) -> Self {
+        let io_threads = config.io_threads;  // TODO: Rust 2018 (NLL)
+        Self {
+            config,
+            fs_pool: Arc::new(FsPool::new(io_threads)),
+        }
+    }
+}
+
+impl Service for BackupService {
+    type ReqBody = Body;
+	type ResBody = Body;
+	type Error = hyper::Error;
+    type Future = ResponseFuture;
+
+    fn call(&mut self, req: Request<Self::ReqBody>) -> Self::Future {
+        trace!("BackupService::call");
+        handler(req, &self.config, &self.fs_pool)
+    }
+}
+
+impl NewService for BackupService {
+    type ReqBody = Body;
+    type ResBody = Body;
+    type Error = hyper::Error;
+    type InitError = hyper::Error;
+    type Service = Self;
+    type Future = Box<Future<Item = Self::Service, Error = Self::InitError> + Send>;
+    fn new_service(&self) -> Self::Future {
+        trace!("BackupService::new_service");
+        Box::new(future::ok(self.clone()))
+    }
+}
+
 /// Main handler.
-pub fn handler(req: Request<Body>, config: ServerConfig) -> BoxFut {
+pub fn handler(req: Request<Body>, config: &ServerConfig, fs_pool: &FsPool) -> BoxFut {
     // Prepare response
     let mut resp = Response::new(Body::empty());
 
@@ -87,7 +133,7 @@ pub fn handler(req: Request<Body>, config: ServerConfig) -> BoxFut {
                 Ok(Match { handler: Route::Config, .. }) =>
                     handle_config(&req, &mut resp, &config),
                 Ok(Match { handler: Route::Backup, params }) =>
-                    handle_get_backup(&req, &mut resp, &config,
+                    handle_get_backup(&req, &mut resp, config, fs_pool,
                                       params.find("backupId")
                                             .expect("Could not get backupId param")),
                 Err(_) => handle_404(&mut resp),
@@ -129,6 +175,7 @@ fn handle_get_backup(
     req: &Request<Body>,
     resp: &mut Response<Body>,
     config: &ServerConfig,
+    fs_pool: &FsPool,
     backup_id: &str,
 ) {
     // Validate headers
@@ -143,8 +190,7 @@ fn handle_get_backup(
 
     let backup_path = config.backup_dir.join(backup_id);
     if backup_path.exists() && backup_path.is_file() {
-        let pool = FsPool::default(); // TODO: Single pool instance?
-        let stream = pool.read(backup_path, Default::default());
+        let stream = fs_pool.read(backup_path, Default::default());
         *resp.body_mut() = Body::wrap_stream(stream);
     } else {
         *resp.status_mut() = StatusCode::NOT_FOUND;

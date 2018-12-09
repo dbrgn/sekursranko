@@ -1,11 +1,9 @@
 extern crate hyper;
 extern crate sekursranko;
 
-use hyper::Server;
 use hyper::rt::Future;
-use hyper::service::service_fn;
 
-use sekursranko::ServerConfig;
+use sekursranko::{BackupService, ServerConfig};
 
 fn main() {
     let port = 3000;
@@ -17,12 +15,11 @@ fn main() {
         max_backup_bytes: 524288,
         retention_days: 180,
         backup_dir: "backups".into(),
+        io_threads: 4,
     };
-    let server = Server::bind(&addr)
-        .serve(move || {
-            let config_clone = config.clone();
-            service_fn(move |req| sekursranko::handler(req, config_clone.clone()))
-        })
+    let context = BackupService::new(config);
+    let server = hyper::Server::bind(&addr)
+        .serve(context)
         .map_err(|e| eprintln!("Server error: {}", e));
 
     // Loop forever

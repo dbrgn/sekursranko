@@ -9,9 +9,10 @@ use std::io::Write;
 
 use hyper::Server;
 use hyper::rt::Future;
-use hyper::service::service_fn;
 use reqwest::{Client, header};
 use tempfile::TempDir;
+
+use sekursranko::{BackupService, ServerConfig};
 
 struct TestServer {
     handle: thread::JoinHandle<()>,
@@ -25,17 +26,15 @@ impl TestServer {
         let backup_dir = tempfile::Builder::new()
                 .prefix("sekursranko-test")
                 .tempdir().expect("Could not create temporary backup directory");
-        let config = sekursranko::ServerConfig {
+        let config = ServerConfig {
             max_backup_bytes: 524288,
             retention_days: 180,
             backup_dir: backup_dir.path().to_path_buf(),
+            io_threads: 4,
         };
 
         let addr = ([127, 0, 0, 1], 0).into();
-        let service = move || {
-            let config_clone = config.clone();
-            service_fn(move |req| sekursranko::handler(req, config_clone.clone()))
-        };
+        let service = BackupService::new(config);
         let server = Server::bind(&addr).serve(service);
         let port = server.local_addr().port();
         let handle = thread::spawn(move || {
