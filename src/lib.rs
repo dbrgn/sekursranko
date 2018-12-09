@@ -1,9 +1,14 @@
+#![deny(clippy::all)]
+#![warn(clippy::pedantic)]
+#![allow(clippy::stutter)]
+#![allow(clippy::non_ascii_literal)]
+
 mod config;
 
 use std::sync::Arc;
 
 use futures::future;
-use futures_fs::FsPool;
+use futures_fs::{FsPool, ReadOptions};
 use hyper::{Body, Request, Response};
 use hyper::{Method, StatusCode};
 use hyper::header;
@@ -77,7 +82,7 @@ impl Service for BackupService {
 
     fn call(&mut self, req: Request<Self::ReqBody>) -> Self::Future {
         trace!("BackupService::call");
-        handler(req, &self.config, &self.fs_pool)
+        handler(&req, &self.config, &self.fs_pool)
     }
 }
 
@@ -95,7 +100,7 @@ impl NewService for BackupService {
 }
 
 /// Main handler.
-pub fn handler(req: Request<Body>, config: &ServerConfig, fs_pool: &FsPool) -> BoxFut {
+pub fn handler(req: &Request<Body>, config: &ServerConfig, fs_pool: &FsPool) -> BoxFut {
     // Prepare response
     let mut resp = Response::new(Body::empty());
 
@@ -115,8 +120,8 @@ pub fn handler(req: Request<Body>, config: &ServerConfig, fs_pool: &FsPool) -> B
     router.add("/config", Route::Config);
     router.add("/backups/:backupId", Route::Backup);
 
-    match req.method() {
-        &Method::GET => {
+    match *req.method() {
+        Method::GET => {
             match router.recognize(req.uri().path()) {
                 Ok(Match { handler: Route::Index, .. }) =>
                     handle_index(&mut resp),
@@ -180,7 +185,7 @@ fn handle_get_backup(
 
     let backup_path = config.backup_dir.join(backup_id);
     if backup_path.exists() && backup_path.is_file() {
-        let stream = fs_pool.read(backup_path, Default::default());
+        let stream = fs_pool.read(backup_path, ReadOptions::default());
         *resp.body_mut() = Body::wrap_stream(stream);
     } else {
         *resp.status_mut() = StatusCode::NOT_FOUND;

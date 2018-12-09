@@ -9,7 +9,7 @@ fn main() {
 
     // Create server
     let config: ServerConfig = ServerConfig {
-        max_backup_bytes: 524288,
+        max_backup_bytes: 512 * 1024,
         retention_days: 180,
         backup_dir: "backups".into(),
         io_threads: 4,
