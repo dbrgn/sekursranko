@@ -120,21 +120,32 @@ pub fn handler(req: &Request<Body>, config: &ServerConfig, fs_pool: &FsPool) -> 
     router.add("/config", Route::Config);
     router.add("/backups/:backupId", Route::Backup);
 
-    match *req.method() {
-        Method::GET => {
-            match router.recognize(req.uri().path()) {
-                Ok(Match { handler: Route::Index, .. }) =>
-                    handle_index(&mut resp),
-                Ok(Match { handler: Route::Config, .. }) =>
-                    handle_config(&req, &mut resp, &config),
-                Ok(Match { handler: Route::Backup, params }) =>
-                    handle_get_backup(&req, &mut resp, config, fs_pool,
-                                      params.find("backupId")
-                                            .expect("Could not get backupId param")),
-                Err(_) => handle_404(&mut resp),
-            };
+    match router.recognize(req.uri().path()) {
+        Ok(Match { handler: Route::Index, .. }) => {
+            if req.method() == Method::GET {
+                handle_index(&mut resp);
+            } else {
+                handle_405(&mut resp);
+            }
         }
-        _ => handle_404(&mut resp),
+        Ok(Match { handler: Route::Config, .. }) => {
+            if req.method() == Method::GET {
+                handle_config(&req, &mut resp, &config);
+            } else {
+                handle_405(&mut resp);
+            }
+        }
+        Ok(Match { handler: Route::Backup, params }) => {
+            let backup_id = params.find("backupId");
+            match *req.method() {
+                Method::GET => {
+                    handle_get_backup(&req, &mut resp, config, fs_pool,
+                                      backup_id.expect("Missing backupId param"));
+                }
+                _ => handle_405(&mut resp),
+            }
+        }
+        Err(_) => handle_404(&mut resp),
     }
 
     Box::new(future::ok(resp))
@@ -195,6 +206,10 @@ fn handle_get_backup(
 
 fn handle_404(resp: &mut Response<Body>) {
     *resp.status_mut() = StatusCode::NOT_FOUND;
+}
+
+fn handle_405(resp: &mut Response<Body>) {
+    *resp.status_mut() = StatusCode::METHOD_NOT_ALLOWED;
 }
 
 #[cfg(test)]

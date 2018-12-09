@@ -4,7 +4,7 @@ use std::io::Write;
 
 use hyper::Server;
 use hyper::rt::{run as hyper_run, Future};
-use reqwest::{Client, header};
+use reqwest::{Client, Method, header};
 use tempfile::{self, TempDir};
 
 use sekursranko::{BackupService, ServerConfig};
@@ -60,13 +60,35 @@ user_agent_required!(user_agent_required_index, "/");
 user_agent_required!(user_agent_required_config, "/config");
 user_agent_required!(user_agent_required_backup_download, "/backups/abcd1234");
 
+macro_rules! method_not_allowed {
+    ($name:ident, $method:expr, $url:expr) => {
+        #[test]
+        fn $name() {
+            let TestServer { base_url, .. } = TestServer::new();
+            let client = Client::new();
+            let res = client
+                .request($method, &format!("{}{}", base_url, $url))
+                .header(header::USER_AGENT, "Threema")
+                .send()
+                .unwrap();
+            assert_eq!(res.status().as_u16(), 405);
+        }
+    }
+}
+
+method_not_allowed!(method_not_allowed_index_post, Method::POST, "/");
+method_not_allowed!(method_not_allowed_index_delete, Method::DELETE, "/");
+method_not_allowed!(method_not_allowed_config_delete, Method::DELETE, "/config");
+method_not_allowed!(method_not_allowed_config_put, Method::PUT, "/config");
+method_not_allowed!(method_not_allowed_config_post, Method::POST, "/config");
+
 #[test]
 fn index_ok() {
     let TestServer { base_url, .. } = TestServer::new();
     let client = Client::new();
     let mut res = client
         .get(&base_url)
-        .header(header::USER_AGENT, "Foo Threema Bar")
+        .header(header::USER_AGENT, "A Threema B")
         .send()
         .unwrap();
     let text = res.text().unwrap();
@@ -81,7 +103,7 @@ fn config_require_json() {
     let client = Client::new();
     let mut res = client
         .get(&format!("{}/config", base_url))
-        .header(header::USER_AGENT, "Foo Threema Bar")
+        .header(header::USER_AGENT, "Threema")
         .send()
         .unwrap();
     let text = res.text().unwrap();
@@ -97,7 +119,7 @@ fn backup_download_require_octet_stream() {
     let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
     let mut res = client
         .get(&format!("{}/backups/{}", base_url, backup_id))
-        .header(header::USER_AGENT, "Foo Threema Bar")
+        .header(header::USER_AGENT, "Threema")
         .header(header::ACCEPT, "application/json")
         .send()
         .unwrap();
@@ -114,7 +136,7 @@ fn backup_download_not_found() {
     let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
     let mut res = client
         .get(&format!("{}/backups/{}", base_url, backup_id))
-        .header(header::USER_AGENT, "Foo Threema Bar")
+        .header(header::USER_AGENT, "Threema")
         .header(header::ACCEPT, "application/octet-stream")
         .send()
         .unwrap();
@@ -133,7 +155,7 @@ fn backup_download_ok() {
     file.write_all(b"tre sekura").unwrap();
     let mut res = client
         .get(&format!("{}/backups/{}", base_url, backup_id))
-        .header(header::USER_AGENT, "Foo Threema Bar")
+        .header(header::USER_AGENT, "Threema")
         .header(header::ACCEPT, "application/octet-stream")
         .send()
         .unwrap();
