@@ -7,7 +7,7 @@ use serde_derive::Serialize;
 #[derive(Debug, Clone)]
 pub struct ServerConfig {
     /// The max file size for backups (e.g. 65536)
-    pub max_backup_bytes: u32,
+    pub max_backup_bytes: u64,
     /// The number of days a backup will be retained (e.g. 180)
     pub retention_days: u32,
     /// The path to the directory where backups will be stored
@@ -20,7 +20,7 @@ pub struct ServerConfig {
 #[serde(rename_all = "camelCase")]
 pub struct ServerConfigPublic {
     /// The max file size for backups (e.g. 65536)
-    pub max_backup_bytes: u32,
+    pub max_backup_bytes: u64,
     /// The number of days a backup will be retained (e.g. 180)
     pub retention_days: u32,
 }

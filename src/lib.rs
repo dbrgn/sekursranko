@@ -15,6 +15,7 @@ use hyper::header;
 use hyper::rt::Future;
 use hyper::service::{Service, NewService};
 use log::{trace, warn, error};
+use rand::Rng;
 use route_recognizer::{Router, Match};
 
 pub use crate::config::{ServerConfig, ServerConfigPublic};
@@ -51,6 +52,17 @@ macro_rules! require_accept_is {
             warn!("Received request without valid accept header");
             *$resp.status_mut() = StatusCode::BAD_REQUEST;
             *$resp.body_mut() = Body::from("{\"detail\": \"Invalid accept header\"}");
+            return;
+        }
+    }
+}
+
+macro_rules! require_content_type_is {
+    ($req:expr, $resp:expr, $accept:expr) => {
+        if $req.headers().get(header::CONTENT_TYPE).and_then(|v| v.to_str().ok()) != Some($accept) {
+            warn!("Received request without valid content-type header");
+            *$resp.status_mut() = StatusCode::BAD_REQUEST;
+            *$resp.body_mut() = Body::from("{\"detail\": \"Invalid content-type header\"}");
             return;
         }
     }
@@ -136,12 +148,21 @@ pub fn handler(req: &Request<Body>, config: &ServerConfig, fs_pool: &FsPool) -> 
             }
         }
         Ok(Match { handler: Route::Backup, params }) => {
-            let backup_id = params.find("backupId");
             match *req.method() {
-                Method::GET => {
-                    handle_get_backup(&req, &mut resp, config, fs_pool,
-                                      backup_id.expect("Missing backupId param"));
-                }
+                Method::GET => handle_get_backup(
+                    &req,
+                    &mut resp,
+                    config,
+                    fs_pool,
+                    params.find("backupId").expect("Missing backupId param"),
+                ),
+                Method::PUT => handle_put_backup(
+                    &req,
+                    &mut resp,
+                    config,
+                    fs_pool,
+                    params.find("backupId").expect("Missing backupId param"),
+                ),
                 _ => handle_405(&mut resp),
             }
         }
@@ -202,6 +223,83 @@ fn handle_get_backup(
         *resp.status_mut() = StatusCode::NOT_FOUND;
         return;
     }
+}
+
+fn handle_put_backup(
+    req: &Request<Body>,
+    resp: &mut Response<Body>,
+    config: &ServerConfig,
+    fs_pool: &FsPool,
+    backup_id: &str,
+) {
+    // Validate headers
+    require_content_type_is!(req, resp, "application/octet-stream");
+
+    // Validate params
+    if !backup_id_valid(backup_id) {
+        warn!("Upload of backup with invalid id was requested: {}", backup_id);
+        *resp.status_mut() = StatusCode::BAD_REQUEST;
+        *resp.body_mut() = Body::from("{\"detail\": \"Invalid backup ID\"}");
+        return;
+    }
+
+    // Validate backup path
+    let backup_path = config.backup_dir.join(backup_id);
+    if backup_path.exists() && !backup_path.is_file() {
+        warn!("Tried to upload to a backup path that exists but is not a file: {:?}", backup_path);
+        *resp.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
+        *resp.body_mut() = Body::from("{\"detail\": \"Internal server error\"}");
+        return;
+    }
+
+    // Get Content-Length header
+    let content_length: u64 = match req.headers()
+                                       .get(header::CONTENT_LENGTH)
+                                       .and_then(|v| v.to_str().ok())
+                                       .and_then(|v| v.parse().ok()) {
+        Some(len) => {
+            println!("content length is {}", len);
+            len
+        },
+        None => {
+            warn!("Upload request has invalid content-length header: \"{:?}\"", req.headers().get(header::CONTENT_LENGTH));
+            *resp.status_mut() = StatusCode::BAD_REQUEST;
+            *resp.body_mut() = Body::from("{\"detail\": \"Invalid or missing content-length header\"}");
+            return;
+        }
+    };
+    if content_length > config.max_backup_bytes {
+        warn!("Upload request is too large ({} > {})", content_length, config.max_backup_bytes);
+        *resp.status_mut() = StatusCode::PAYLOAD_TOO_LARGE;
+        *resp.body_mut() = Body::from("{\"detail\": \"Backup is too large\"}");
+        return;
+    }
+
+    // We will now write the incoming stream to a file, but in case it is too
+    // large we have to abort. To prevent overwriting existing backups with
+    // invalid data, first write the file to a new path and then rename it later if
+    // it's OK.
+    let random_ext: String = {
+        let mut rng = rand::thread_rng();
+        std::iter::repeat(())
+            .map(|_| rng.sample(rand::distributions::Alphanumeric))
+            .take(10)
+            .collect()
+    };
+    let backup_path_dl = backup_path.with_extension(random_ext);
+    trace!("Writing temporary upload to {:?}", backup_path_dl);
+    if backup_path_dl.exists() {
+        error!("Random upload path \"{:?}\" already exists!", backup_path_dl);
+        *resp.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
+        *resp.body_mut() = Body::from("{\"detail\": \"Internal server error\"}");
+        return;
+    }
+
+//
+//    // Write data
+//        *resp.status_mut() = StatusCode::NOT_FOUND;
+//        return;
+//    }
 }
 
 fn handle_404(resp: &mut Response<Body>) {

@@ -13,6 +13,7 @@ struct TestServer {
     handle: thread::JoinHandle<()>,
     base_url: String,
     backup_dir: TempDir,
+    config: ServerConfig,
 }
 
 impl TestServer {
@@ -29,7 +30,7 @@ impl TestServer {
         };
 
         let addr = ([127, 0, 0, 1], 0).into();
-        let service = BackupService::new(config);
+        let service = BackupService::new(config.clone());
         let server = Server::bind(&addr).serve(service);
         let port = server.local_addr().port();
         let handle = thread::spawn(move || {
@@ -37,7 +38,7 @@ impl TestServer {
         });
         let base_url = format!("http://127.0.0.1:{}", port);
 
-        TestServer { handle, base_url, backup_dir }
+        TestServer { handle, base_url, backup_dir, config }
     }
 }
 
@@ -163,4 +164,78 @@ fn backup_download_ok() {
     println!("{}", text);
     assert_eq!(res.status().as_u16(), 200);
     assert_eq!(text, "tre sekura");
+}
+
+#[test]
+fn backup_upload_require_octet_stream() {
+    let TestServer { base_url, .. } = TestServer::new();
+    let client = Client::new();
+    let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+    let mut res = client
+        .put(&format!("{}/backups/{}", base_url, backup_id))
+        .header(header::USER_AGENT, "Threema")
+        .header(header::CONTENT_TYPE, "application/json")
+        .send()
+        .unwrap();
+    let text = res.text().unwrap();
+    println!("{}", text);
+    assert_eq!(res.status().as_u16(), 400);
+    assert_eq!(text, "{\"detail\": \"Invalid content-type header\"}");
+}
+
+#[test]
+fn backup_upload_invalid_backup_id() {
+    let TestServer { base_url, .. } = TestServer::new();
+    let client = Client::new();
+    let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789gggggg";
+    let mut res = client
+        .put(&format!("{}/backups/{}", base_url, backup_id))
+        .header(header::USER_AGENT, "Threema")
+        .header(header::CONTENT_TYPE, "application/octet-stream")
+        .send()
+        .unwrap();
+    let text = res.text().unwrap();
+    println!("{}", text);
+    assert_eq!(res.status().as_u16(), 400);
+    assert_eq!(text, "{\"detail\": \"Invalid backup ID\"}");
+}
+
+/// Request with body that is exactly max bytes large (according to
+/// content-length header).
+#[test]
+fn backup_upload_payload_not_too_large() {
+    let TestServer { base_url, config, .. } = TestServer::new();
+    let client = Client::new();
+    let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+    let mut res = client
+        .put(&format!("{}/backups/{}", base_url, backup_id))
+        .header(header::USER_AGENT, "Threema")
+        .header(header::CONTENT_TYPE, "application/octet-stream")
+        .header(header::CONTENT_LENGTH, format!("{}", config.max_backup_bytes))
+        .send()
+        .unwrap();
+    let text = res.text().unwrap();
+    println!("{}", text);
+    assert_ne!(res.status().as_u16(), 413);
+    assert_ne!(text, "{\"detail\": \"Backup is too large\"}");
+}
+
+/// Request with body that is a byte too large (according to content-length
+/// header).
+#[test]
+fn backup_upload_payload_too_large() {
+    let TestServer { base_url, config, .. } = TestServer::new();
+    let client = Client::new();
+    let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+    let mut res = client
+        .put(&format!("{}/backups/{}", base_url, backup_id))
+        .header(header::USER_AGENT, "Threema")
+        .header(header::CONTENT_TYPE, "application/octet-stream")
+        .header(header::CONTENT_LENGTH, format!("{}", config.max_backup_bytes + 1))
+        .send()
+        .unwrap();
+    let text = res.text().unwrap();
+    println!("{}", text);
+    assert_eq!(res.status().as_u16(), 413);
+    assert_eq!(text, "{\"detail\": \"Backup is too large\"}");
 }
