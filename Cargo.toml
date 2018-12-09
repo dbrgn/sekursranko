@@ -2,6 +2,7 @@
 name = "sekursranko"
 version = "0.1.0"
 authors = ["Danilo Bargen <mail@dbrgn.ch>"]
+edition = "2018"
 
 [dependencies]
 futures = "0.1"

@@ -1,7 +1,4 @@
-extern crate hyper;
-extern crate sekursranko;
-
-use hyper::rt::Future;
+use hyper::{Server, rt::Future, rt::run as hyper_run};
 
 use sekursranko::{BackupService, ServerConfig};
 
@@ -18,10 +15,10 @@ fn main() {
         io_threads: 4,
     };
     let context = BackupService::new(config);
-    let server = hyper::Server::bind(&addr)
+    let server = Server::bind(&addr)
         .serve(context)
         .map_err(|e| eprintln!("Server error: {}", e));
 
     // Loop forever
-    hyper::rt::run(server);
+    hyper_run(server);
 }

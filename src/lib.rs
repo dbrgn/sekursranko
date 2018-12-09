@@ -1,13 +1,3 @@
-extern crate futures;
-extern crate futures_fs;
-extern crate hyper;
-extern crate log;
-extern crate route_recognizer;
-extern crate serde;
-#[macro_use] extern crate serde_derive;
-extern crate serde_json;
-extern crate tokio;
-
 mod config;
 
 use std::sync::Arc;
@@ -22,7 +12,7 @@ use hyper::service::{Service, NewService};
 use log::{trace, warn, error};
 use route_recognizer::{Router, Match};
 
-pub use config::{ServerConfig, ServerConfigPublic};
+pub use crate::config::{ServerConfig, ServerConfigPublic};
 
 static NAME: &str = "Sekurŝranko";
 static VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -34,7 +24,7 @@ enum Route {
     Backup,
 }
 
-type BoxFut = Box<Future<Item=Response<Body>, Error=hyper::Error> + Send>;
+type BoxFut = Box<dyn Future<Item=Response<Body>, Error=hyper::Error> + Send>;
 
 macro_rules! require_accept_starts_with {
     ($req:expr, $resp:expr, $accept:expr) => {
@@ -61,7 +51,7 @@ macro_rules! require_accept_is {
     }
 }
 
-pub type ResponseFuture = Box<Future<Item = Response<Body>, Error = hyper::Error> + Send>;
+pub type ResponseFuture = Box<dyn Future<Item = Response<Body>, Error = hyper::Error> + Send>;
 
 #[derive(Debug, Clone)]
 pub struct BackupService {
@@ -71,7 +61,7 @@ pub struct BackupService {
 
 impl BackupService {
     pub fn new(config: ServerConfig) -> Self {
-        let io_threads = config.io_threads;  // TODO: Rust 2018 (NLL)
+        let io_threads = config.io_threads;
         Self {
             config,
             fs_pool: Arc::new(FsPool::new(io_threads)),
@@ -97,7 +87,7 @@ impl NewService for BackupService {
     type Error = hyper::Error;
     type InitError = hyper::Error;
     type Service = Self;
-    type Future = Box<Future<Item = Self::Service, Error = Self::InitError> + Send>;
+    type Future = Box<dyn Future<Item = Self::Service, Error = Self::InitError> + Send>;
     fn new_service(&self) -> Self::Future {
         trace!("BackupService::new_service");
         Box::new(future::ok(self.clone()))

@@ -1,6 +1,8 @@
 use std::convert::From;
 use std::path::PathBuf;
 
+use serde_derive::Serialize;
+
 /// The server configuration.
 #[derive(Debug, Clone)]
 pub struct ServerConfig {

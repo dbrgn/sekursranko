@@ -1,16 +1,11 @@
-extern crate hyper;
-extern crate reqwest;
-extern crate sekursranko;
-extern crate tempfile;
-
 use std::thread;
 use std::fs::File;
 use std::io::Write;
 
 use hyper::Server;
-use hyper::rt::Future;
+use hyper::rt::{run as hyper_run, Future};
 use reqwest::{Client, header};
-use tempfile::TempDir;
+use tempfile::{self, TempDir};
 
 use sekursranko::{BackupService, ServerConfig};
 
@@ -38,7 +33,7 @@ impl TestServer {
         let server = Server::bind(&addr).serve(service);
         let port = server.local_addr().port();
         let handle = thread::spawn(move || {
-            hyper::rt::run(server.map_err(|e| eprintln!("Server error: {}", e)));
+            hyper_run(server.map_err(|e| eprintln!("Server error: {}", e)));
         });
         let base_url = format!("http://127.0.0.1:{}", port);
 
