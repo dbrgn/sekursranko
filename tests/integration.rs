@@ -1,7 +1,7 @@
 use std::env;
 use std::thread;
 use std::fs::File;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::sync::{Once, ONCE_INIT};
 
 use hyper::Server;
@@ -14,6 +14,7 @@ use sekursranko::{BackupService, ServerConfig};
 static LOGGER_INIT: Once = ONCE_INIT;
 
 struct TestServer {
+    #[allow(dead_code)]
     handle: thread::JoinHandle<()>,
     base_url: String,
     backup_dir: TempDir,
@@ -254,4 +255,36 @@ fn backup_upload_payload_too_large() {
     println!("{}", text);
     assert_eq!(res.status().as_u16(), 413);
     assert_eq!(text, "{\"detail\": \"Backup is too large\"}");
+}
+
+/// Successfully create a backup.
+#[test]
+fn backup_upload_success_created() {
+    // Test env
+    let TestServer { base_url, config, backup_dir, .. } = TestServer::new();
+    assert!(config.backup_dir.exists());
+
+    // Send upload request
+    let client = Client::new();
+    let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+    let mut res = client
+        .put(&format!("{}/backups/{}", base_url, backup_id))
+        .header(header::USER_AGENT, "Threema")
+        .header(header::CONTENT_TYPE, "application/octet-stream")
+        .body(b"tiu sekurkopio estas tre sekura!".to_vec())
+        .send()
+        .unwrap();
+    let text = res.text().unwrap();
+    println!("{}", text);
+    assert_eq!(res.status().as_u16(), 201);  // TODO: 204
+    assert_eq!(text, "");
+
+    // Verify result
+    let backup_file_path = backup_dir.path().join(backup_id);
+    assert!(backup_file_path.exists(), "Backup file does not exist");
+    assert!(backup_file_path.is_file(), "Backup file is not a regular file");
+    let mut backup_file = File::open(backup_file_path).expect("Could not open backup file");
+    let mut buffer = String::new();
+    backup_file.read_to_string(&mut buffer).unwrap();
+    assert_eq!(buffer, "tiu sekurkopio estas tre sekura!");
 }

@@ -36,7 +36,7 @@ impl Service for BackupService {
 
     fn call(&mut self, req: Request<Self::ReqBody>) -> Self::Future {
         trace!("BackupService::call");
-        handler(&req, &self.config, &self.fs_pool)
+        handler(req, &self.config, &self.fs_pool)
     }
 }
 
