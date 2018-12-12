@@ -5,10 +5,22 @@
 An efficient and memory-safe Threema Safe server implementation
 written in Rust.
 
-Work in progress, the functionality is mostly implemented, but some cases still
-need to be handled.
-
 This is a private project, not developed nor endorsed by Threema GmbH.
+
+
+## Status
+
+Work in progress, the functionality is mostly implemented, but some cases still
+need to be handled. Currently, the server needs to be manually compiled, but in
+the future binary builds will be provided.
+
+- [x] Request config
+- [ ] Settings configurable by user
+- [x] Download backups
+- [x] Upload backups
+- [ ] Delete backups
+- [ ] Throttling
+- [ ] Automatic cleanup of expired backups
 
 
 ## Building
