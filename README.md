@@ -5,7 +5,8 @@
 An efficient and memory-safe Threema Safe server implementation
 written in Rust.
 
-Work in progress, does not work yet.
+Work in progress, the functionality is mostly implemented, but some cases still
+need to be handled.
 
 This is a private project, not developed nor endorsed by Threema GmbH.
 
@@ -18,9 +19,27 @@ To make a release build:
 
     cargo build --release
 
+You will find the binary at `target/release/sekursranko`.
+
+
+## Testing
+
 To run tests:
 
     cargo test
+
+In case you want to enable logging:
+
+    RUST_LOG=sekursranko=trace cargo test
+
+
+## Running
+
+Either build&run the binary directly with Cargo:
+
+    cargo run --release
+
+...or build and execute the generated binary.
 
 
 ## Name
