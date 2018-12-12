@@ -1,6 +1,8 @@
+use std::env;
 use std::thread;
 use std::fs::File;
 use std::io::Write;
+use std::sync::{Once, ONCE_INIT};
 
 use hyper::Server;
 use hyper::rt::{run as hyper_run, Future};
@@ -8,6 +10,8 @@ use reqwest::{Client, Method, header};
 use tempfile::{self, TempDir};
 
 use sekursranko::{BackupService, ServerConfig};
+
+static LOGGER_INIT: Once = ONCE_INIT;
 
 struct TestServer {
     handle: thread::JoinHandle<()>,
@@ -19,9 +23,20 @@ struct TestServer {
 impl TestServer {
     /// Create a new test server instance.
     fn new() -> Self {
+        // Initialize logger
+        LOGGER_INIT.call_once(|| {
+            if env::var("RUST_LOG").unwrap_or("".into()).is_empty() {
+                env::set_var("RUST_LOG", "sekursranko=error");
+            }
+            env_logger::init();
+        });
+
+        // Create backup tmpdir
         let backup_dir = tempfile::Builder::new()
                 .prefix("sekursranko-test")
                 .tempdir().expect("Could not create temporary backup directory");
+
+        // Create config object
         let config = ServerConfig {
             max_backup_bytes: 524288,
             retention_days: 180,
@@ -29,6 +44,7 @@ impl TestServer {
             io_threads: 4,
         };
 
+        // Run server
         let addr = ([127, 0, 0, 1], 0).into();
         let service = BackupService::new(config.clone());
         let server = Server::bind(&addr).serve(service);
