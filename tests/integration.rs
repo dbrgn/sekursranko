@@ -64,8 +64,7 @@ macro_rules! user_agent_required {
         #[test]
         fn $name() {
             let TestServer { base_url, .. } = TestServer::new();
-            let client = Client::new();
-            let res = client
+            let res = Client::new()
                 .get(&format!("{}{}", base_url, $url))
                 .send()
                 .unwrap();
@@ -83,8 +82,7 @@ macro_rules! method_not_allowed {
         #[test]
         fn $name() {
             let TestServer { base_url, .. } = TestServer::new();
-            let client = Client::new();
-            let res = client
+            let res = Client::new()
                 .request($method, &format!("{}{}", base_url, $url))
                 .header(header::USER_AGENT, "Threema")
                 .send()
@@ -103,8 +101,7 @@ method_not_allowed!(method_not_allowed_config_post, Method::POST, "/config");
 #[test]
 fn index_ok() {
     let TestServer { base_url, .. } = TestServer::new();
-    let client = Client::new();
-    let mut res = client
+    let mut res = Client::new()
         .get(&base_url)
         .header(header::USER_AGENT, "A Threema B")
         .send()
@@ -118,8 +115,7 @@ fn index_ok() {
 #[test]
 fn config_require_json() {
     let TestServer { base_url, .. } = TestServer::new();
-    let client = Client::new();
-    let mut res = client
+    let mut res = Client::new()
         .get(&format!("{}/config", base_url))
         .header(header::USER_AGENT, "Threema")
         .send()
@@ -133,9 +129,8 @@ fn config_require_json() {
 #[test]
 fn backup_download_require_octet_stream() {
     let TestServer { base_url, .. } = TestServer::new();
-    let client = Client::new();
     let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-    let mut res = client
+    let mut res = Client::new()
         .get(&format!("{}/backups/{}", base_url, backup_id))
         .header(header::USER_AGENT, "Threema")
         .header(header::ACCEPT, "application/json")
@@ -150,9 +145,8 @@ fn backup_download_require_octet_stream() {
 #[test]
 fn backup_download_not_found() {
     let TestServer { base_url, .. } = TestServer::new();
-    let client = Client::new();
     let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-    let mut res = client
+    let mut res = Client::new()
         .get(&format!("{}/backups/{}", base_url, backup_id))
         .header(header::USER_AGENT, "Threema")
         .header(header::ACCEPT, "application/octet-stream")
@@ -167,11 +161,10 @@ fn backup_download_not_found() {
 #[test]
 fn backup_download_ok() {
     let TestServer { base_url, backup_dir, .. } = TestServer::new();
-    let client = Client::new();
     let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
     let mut file = File::create(backup_dir.path().join(backup_id)).unwrap();
     file.write_all(b"tre sekura").unwrap();
-    let mut res = client
+    let mut res = Client::new()
         .get(&format!("{}/backups/{}", base_url, backup_id))
         .header(header::USER_AGENT, "Threema")
         .header(header::ACCEPT, "application/octet-stream")
@@ -186,9 +179,8 @@ fn backup_download_ok() {
 #[test]
 fn backup_upload_require_octet_stream() {
     let TestServer { base_url, .. } = TestServer::new();
-    let client = Client::new();
     let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-    let mut res = client
+    let mut res = Client::new()
         .put(&format!("{}/backups/{}", base_url, backup_id))
         .header(header::USER_AGENT, "Threema")
         .header(header::CONTENT_TYPE, "application/json")
@@ -203,9 +195,8 @@ fn backup_upload_require_octet_stream() {
 #[test]
 fn backup_upload_invalid_backup_id() {
     let TestServer { base_url, .. } = TestServer::new();
-    let client = Client::new();
     let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789gggggg";
-    let mut res = client
+    let mut res = Client::new()
         .put(&format!("{}/backups/{}", base_url, backup_id))
         .header(header::USER_AGENT, "Threema")
         .header(header::CONTENT_TYPE, "application/octet-stream")
@@ -222,9 +213,8 @@ fn backup_upload_invalid_backup_id() {
 #[test]
 fn backup_upload_payload_not_too_large() {
     let TestServer { base_url, config, .. } = TestServer::new();
-    let client = Client::new();
     let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-    let mut res = client
+    let mut res = Client::new()
         .put(&format!("{}/backups/{}", base_url, backup_id))
         .header(header::USER_AGENT, "Threema")
         .header(header::CONTENT_TYPE, "application/octet-stream")
@@ -242,9 +232,8 @@ fn backup_upload_payload_not_too_large() {
 #[test]
 fn backup_upload_payload_too_large() {
     let TestServer { base_url, config, .. } = TestServer::new();
-    let client = Client::new();
     let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-    let mut res = client
+    let mut res = Client::new()
         .put(&format!("{}/backups/{}", base_url, backup_id))
         .header(header::USER_AGENT, "Threema")
         .header(header::CONTENT_TYPE, "application/octet-stream")
@@ -258,8 +247,7 @@ fn backup_upload_payload_too_large() {
 }
 
 fn upload_backup(base_url: &str, backup_id: &str, body: Vec<u8>) -> Response {
-    let client = Client::new();
-    client
+    Client::new()
         .put(&format!("{}/backups/{}", base_url, backup_id))
         .header(header::USER_AGENT, "Threema")
         .header(header::CONTENT_TYPE, "application/octet-stream")
@@ -272,15 +260,15 @@ fn upload_backup(base_url: &str, backup_id: &str, body: Vec<u8>) -> Response {
 #[test]
 fn backup_upload_success_created() {
     // Test env
-    let TestServer { base_url, config, backup_dir, .. } = TestServer::new();
-    assert!(config.backup_dir.exists());
+    let TestServer { base_url, backup_dir, .. } = TestServer::new();
+    assert!(backup_dir.path().exists());
 
     // Send upload request
     let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
     let mut res = upload_backup(&base_url, &backup_id, b"tiu sekurkopio estas tre sekura!".to_vec());
     let text = res.text().unwrap();
     println!("{}", text);
-    assert_eq!(res.status().as_u16(), 201);  // TODO: 204
+    assert_eq!(res.status().as_u16(), 201);
     assert_eq!(text, "");
 
     // Verify result
@@ -297,8 +285,8 @@ fn backup_upload_success_created() {
 #[test]
 fn backup_upload_success_updated() {
     // Test env
-    let TestServer { base_url, config, backup_dir, .. } = TestServer::new();
-    assert!(config.backup_dir.exists());
+    let TestServer { base_url, backup_dir, .. } = TestServer::new();
+    assert!(backup_dir.path().exists());
 
     // Create existing upload file
     let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";

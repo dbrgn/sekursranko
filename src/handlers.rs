@@ -221,10 +221,8 @@ fn handle_put_backup(
         return Box::new(future::ok(resp));
     }
 
-    // We will now write the incoming stream to a file, but in case it is too
-    // large we will have to abort. To prevent overwriting existing backups
-    // with invalid data, first write the file to a new path and then rename it
-    // later OK.
+    // Write the incoming stream to a temporary file. This is done to prevent
+    // incomplete backups from being persisted.
     let random_ext: String = {
         let mut rng = rand::thread_rng();
         std::iter::repeat(())
@@ -242,14 +240,13 @@ fn handle_put_backup(
     }
 
     // Write data
+    let backup_id = backup_id.to_string();
     let sink = fs_pool.write(backup_path_dl.clone(), WriteOptions::default());
     let body_stream = req
         .into_body()
         .map(|chunk| chunk.into_bytes())
         .map_err(|error: hyper::Error| IoError::new(ErrorKind::Other, error));
-    let write_future = sink
-        .send_all(body_stream);
-    let backup_id = backup_id.to_string();
+    let write_future = sink.send_all(body_stream);
     let response_future = write_future
         .and_then(move |_| {
             trace!("Wrote temp backup for {}", backup_id);
