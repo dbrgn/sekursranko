@@ -6,7 +6,7 @@ use std::sync::{Once, ONCE_INIT};
 
 use hyper::Server;
 use hyper::rt::{run as hyper_run, Future};
-use reqwest::{Client, Method, header};
+use reqwest::{Client, Method, Response, header};
 use tempfile::{self, TempDir};
 
 use sekursranko::{BackupService, ServerConfig};
@@ -257,6 +257,17 @@ fn backup_upload_payload_too_large() {
     assert_eq!(text, "{\"detail\": \"Backup is too large\"}");
 }
 
+fn upload_backup(base_url: &str, backup_id: &str, body: Vec<u8>) -> Response {
+    let client = Client::new();
+    client
+        .put(&format!("{}/backups/{}", base_url, backup_id))
+        .header(header::USER_AGENT, "Threema")
+        .header(header::CONTENT_TYPE, "application/octet-stream")
+        .body(body)
+        .send()
+        .unwrap()
+}
+
 /// Successfully create a backup.
 #[test]
 fn backup_upload_success_created() {
@@ -265,15 +276,8 @@ fn backup_upload_success_created() {
     assert!(config.backup_dir.exists());
 
     // Send upload request
-    let client = Client::new();
     let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-    let mut res = client
-        .put(&format!("{}/backups/{}", base_url, backup_id))
-        .header(header::USER_AGENT, "Threema")
-        .header(header::CONTENT_TYPE, "application/octet-stream")
-        .body(b"tiu sekurkopio estas tre sekura!".to_vec())
-        .send()
-        .unwrap();
+    let mut res = upload_backup(&base_url, &backup_id, b"tiu sekurkopio estas tre sekura!".to_vec());
     let text = res.text().unwrap();
     println!("{}", text);
     assert_eq!(res.status().as_u16(), 201);  // TODO: 204
@@ -281,6 +285,35 @@ fn backup_upload_success_created() {
 
     // Verify result
     let backup_file_path = backup_dir.path().join(backup_id);
+    assert!(backup_file_path.exists(), "Backup file does not exist");
+    assert!(backup_file_path.is_file(), "Backup file is not a regular file");
+    let mut backup_file = File::open(backup_file_path).expect("Could not open backup file");
+    let mut buffer = String::new();
+    backup_file.read_to_string(&mut buffer).unwrap();
+    assert_eq!(buffer, "tiu sekurkopio estas tre sekura!");
+}
+
+/// Successfully update a backup.
+#[test]
+fn backup_upload_success_updated() {
+    // Test env
+    let TestServer { base_url, config, backup_dir, .. } = TestServer::new();
+    assert!(config.backup_dir.exists());
+
+    // Create existing upload file
+    let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+    let backup_file_path = backup_dir.path().join(backup_id);
+    let mut backup_file = File::create(&backup_file_path).expect("Could not create backup file");
+    backup_file.write(b"sekurkopio antikva").unwrap();
+
+    // Send upload request
+    let mut res = upload_backup(&base_url, &backup_id, b"tiu sekurkopio estas tre sekura!".to_vec());
+    let text = res.text().unwrap();
+    println!("{}", text);
+    assert_eq!(res.status().as_u16(), 204);
+    assert_eq!(text, "");
+
+    // Verify result
     assert!(backup_file_path.exists(), "Backup file does not exist");
     assert!(backup_file_path.is_file(), "Backup file is not a regular file");
     let mut backup_file = File::open(backup_file_path).expect("Could not open backup file");

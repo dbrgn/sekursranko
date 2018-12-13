@@ -7,6 +7,9 @@ written in Rust.
 
 This is a private project, not developed nor endorsed by Threema GmbH.
 
+The server spec can be found in the [Cryptography
+Whitepaper](https://threema.ch/press-files/2_documentation/cryptography_whitepaper.pdf).
+
 
 ## Status
 

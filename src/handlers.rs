@@ -222,9 +222,9 @@ fn handle_put_backup(
     }
 
     // We will now write the incoming stream to a file, but in case it is too
-    // large we have to abort. To prevent overwriting existing backups with
-    // invalid data, first write the file to a new path and then rename it later if
-    // it's OK.
+    // large we will have to abort. To prevent overwriting existing backups
+    // with invalid data, first write the file to a new path and then rename it
+    // later OK.
     let random_ext: String = {
         let mut rng = rand::thread_rng();
         std::iter::repeat(())
@@ -253,6 +253,7 @@ fn handle_put_backup(
     let response_future = write_future
         .and_then(move |_| {
             trace!("Wrote temp backup for {}", backup_id);
+            let updated = backup_path.exists() && backup_path.is_file();
             match fs::rename(&backup_path_dl, &backup_path) {
                 Ok(_) => trace!("Renamed: {:?} -> {:?}", backup_path_dl, backup_path),
                 Err(e) => {
@@ -260,11 +261,9 @@ fn handle_put_backup(
                     return Err(e);
                 },
             }
-
             info!("Wrote backup {}", backup_id);
-            // TODO: Differentiate between created and updated
             Ok(Response::builder()
-               .status(StatusCode::CREATED)
+               .status(if updated { StatusCode::NO_CONTENT } else { StatusCode::CREATED })
                .body(Body::empty())
                .expect("Could not create response"))
         })
