@@ -94,9 +94,10 @@ macro_rules! method_not_allowed {
 
 method_not_allowed!(method_not_allowed_index_post, Method::POST, "/");
 method_not_allowed!(method_not_allowed_index_delete, Method::DELETE, "/");
-method_not_allowed!(method_not_allowed_config_delete, Method::DELETE, "/config");
 method_not_allowed!(method_not_allowed_config_put, Method::PUT, "/config");
 method_not_allowed!(method_not_allowed_config_post, Method::POST, "/config");
+method_not_allowed!(method_not_allowed_config_delete, Method::DELETE, "/config");
+method_not_allowed!(method_not_allowed_backup_post, Method::POST, "/backups/abcd1234");
 
 #[test]
 fn index_ok() {
@@ -308,4 +309,65 @@ fn backup_upload_success_updated() {
     let mut buffer = String::new();
     backup_file.read_to_string(&mut buffer).unwrap();
     assert_eq!(buffer, "tiu sekurkopio estas tre sekura!");
+}
+
+#[test]
+fn backup_delete_invalid_backup_id() {
+    let TestServer { base_url, .. } = TestServer::new();
+    let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789gggggg";
+    let mut res = Client::new()
+        .delete(&format!("{}/backups/{}", base_url, backup_id))
+        .header(header::USER_AGENT, "Threema")
+        .send()
+        .unwrap();
+    let text = res.text().unwrap();
+    println!("{}", text);
+    assert_eq!(res.status().as_u16(), 400);
+    assert_eq!(text, "{\"detail\": \"Invalid backup ID\"}");
+}
+
+#[test]
+fn backup_delete_not_found() {
+    let TestServer { base_url, .. } = TestServer::new();
+    let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789ffffff";
+    let mut res = Client::new()
+        .delete(&format!("{}/backups/{}", base_url, backup_id))
+        .header(header::USER_AGENT, "Threema")
+        .send()
+        .unwrap();
+    let text = res.text().unwrap();
+    println!("{}", text);
+    assert_eq!(res.status().as_u16(), 404);
+    assert_eq!(text, "");
+}
+
+/// Delete a backup.
+#[test]
+fn backup_delete_success() {
+    // Test env
+    let TestServer { base_url, backup_dir, .. } = TestServer::new();
+    assert!(backup_dir.path().exists());
+
+    // Create existing upload file
+    let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+    let backup_file_path = backup_dir.path().join(backup_id);
+    let mut backup_file = File::create(&backup_file_path).expect("Could not create backup file");
+    backup_file.write(b"sekurkopio antikva").unwrap();
+
+    // Ensure file was created
+    assert!(backup_file_path.exists() && backup_file_path.is_file());
+
+    // Send delete request
+    let mut res = Client::new()
+        .delete(&format!("{}/backups/{}", base_url, backup_id))
+        .header(header::USER_AGENT, "Threema")
+        .send()
+        .unwrap();
+    let text = res.text().unwrap();
+    println!("{}", text);
+    assert_eq!(res.status().as_u16(), 204);
+    assert_eq!(text, "");
+
+    // Ensure file was deleted
+    assert!(!backup_file_path.exists());
 }

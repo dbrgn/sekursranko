@@ -7,7 +7,7 @@ use hyper::{Body, Request, Response};
 use hyper::{Method, StatusCode};
 use hyper::header;
 use hyper::rt::{Future, Stream};
-use log::{trace, info, warn, error};
+use log::{trace, debug, info, warn, error};
 use rand::Rng;
 use route_recognizer::{Router, Match};
 
@@ -104,6 +104,10 @@ pub fn handler(req: Request<Body>, config: &ServerConfig, fs_pool: &FsPool) -> B
                     req,
                     config,
                     fs_pool,
+                    params.find("backupId").expect("Missing backupId param"),
+                ),
+                Method::DELETE => handle_delete_backup(
+                    config,
                     params.find("backupId").expect("Missing backupId param"),
                 ),
                 _ => handle_405(),
@@ -272,6 +276,65 @@ fn handle_put_backup(
                .expect("Could not create response"))
         });
     Box::new(response_future)
+}
+
+fn handle_delete_backup(
+    config: &ServerConfig,
+    backup_id: &str,
+) -> BoxFut {
+    // Validate params
+    if !backup_id_valid(backup_id) {
+        warn!("Deletion of backup with invalid id was requested: {}", backup_id);
+        return Box::new(future::ok(
+            Response::builder()
+                .status(StatusCode::BAD_REQUEST)
+                .body(Body::from("{\"detail\": \"Invalid backup ID\"}"))
+                .expect("Could not create response")
+        ));
+    }
+
+    let backup_path = config.backup_dir.join(backup_id);
+
+    // Ensure backup exists
+    if !backup_path.exists() {
+        debug!("Tried to delete a backup path that does not exist: {:?}", backup_path);
+        return Box::new(future::ok(
+            Response::builder()
+                .status(StatusCode::NOT_FOUND)
+                .body(Body::empty())
+                .expect("Could not create response")
+        ));
+    }
+
+    // Ensure backup is a file
+    if !backup_path.is_file() {
+        warn!("Tried to delete a backup path that exists but is not a file: {:?}", backup_path);
+        return Box::new(future::ok(
+            Response::builder()
+                .status(StatusCode::INTERNAL_SERVER_ERROR)
+                .body(Body::from("{\"detail\": \"Internal server error\"}"))
+                .expect("Could not create response")
+        ));
+    }
+
+    // Delete file
+    match fs::remove_file(&backup_path) {
+        Ok(_) => Box::new(future::ok(
+            Response::builder()
+                .status(StatusCode::NO_CONTENT)
+                .body(Body::empty())
+                .expect("Could not create response")
+        )),
+        Err(e) => {
+            error!("Could not delete backup at {:?}: {}", &backup_path, e);
+            Box::new(future::ok(
+                Response::builder()
+                    .status(StatusCode::INTERNAL_SERVER_ERROR)
+                    .body(Body::from("{\"detail\": \"Internal server error\"}"))
+                    .expect("Could not create response")
+            ))
+        }
+    }
 }
 
 fn handle_404() -> BoxFut {

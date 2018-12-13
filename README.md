@@ -13,15 +13,16 @@ Whitepaper](https://threema.ch/press-files/2_documentation/cryptography_whitepap
 
 ## Status
 
-Work in progress, the functionality is mostly implemented, but some cases still
-need to be handled. Currently, the server needs to be manually compiled, but in
-the future binary builds will be provided.
+Work in progress. The core functionality is implemented, but some additional
+things like throttling or expiration still need to be handled. Currently, the
+server needs to be manually compiled, but in the future binary builds will be
+provided.
 
 - [x] Request config
-- [ ] Settings configurable by user
 - [x] Download backups
 - [x] Upload backups
-- [ ] Delete backups
+- [x] Delete backups
+- [ ] Settings configurable by user
 - [ ] Throttling
 - [ ] Automatic cleanup of expired backups
 
@@ -39,7 +40,9 @@ You will find the binary at `target/release/sekursranko`.
 
 ## Testing
 
-To run tests:
+Sekurŝranko is thoroughly covered by unit tests and integration tests.
+
+To run the tests:
 
     cargo test
 
@@ -50,11 +53,15 @@ In case you want to enable logging:
 
 ## Running
 
-Either build&run the binary directly with Cargo:
+Either build & run the binary directly with Cargo:
 
     cargo run --release
 
 ...or build and execute the generated binary.
+
+Configure logging using the `RUST_LOG` env var:
+
+    RUST_LOG=sekursranko=debug cargo run --release
 
 
 ## Name
