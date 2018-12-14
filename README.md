@@ -67,6 +67,14 @@ Configure logging using the `RUST_LOG` env var:
     RUST_LOG=sekursranko=debug ./sekursranko -c config.toml
 
 
+## Deployment
+
+Sekurŝranko is meant to be run behind a reverse proxy (e.g. Nginx) that does
+TLS termination. That's why it currently doesn't support TLS directly.
+
+Note that you cannot backup to a server without TLS from the Threema app.
+
+
 ## Name
 
 The name of this project is the Esperanto word for "safe". English-speaking
