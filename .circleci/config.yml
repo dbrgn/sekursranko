@@ -1,0 +1,56 @@
+version: 2
+jobs:
+  test:
+    docker:
+      - image: rust:1.31
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-cargo-cache-{{ arch }}-{{ .Branch }}
+            - v1-cargo-cache-{{ arch }}
+      - run: rustc --version && cargo --version
+      - run: cargo build
+      - run: cargo test
+      - save_cache:
+          key: v1-cargo-cache-{{ arch }}-{{ .Branch }}
+          paths:
+            - target
+            - /usr/local/cargo
+      - save_cache:
+          key: v1-cargo-cache-{{ arch }}
+          paths:
+            - target
+            - /usr/local/cargo
+  audit:
+    docker:
+      - image: rust:latest
+    steps:
+      - run:
+          name: Install cargo-audit
+          command: cargo install --force cargo-audit
+      - run:
+          name: Run cargo-audit
+          command: cargo audit
+
+workflows:
+  version: 2
+
+  # Build on push
+  on_push:
+    jobs:
+      - test
+      - audit
+
+  # Build master every week on Monday at 04:00 am
+  weekly:
+    triggers:
+      - schedule:
+          cron: "0 4 * * 1"
+          filters:
+            branches:
+              only:
+                - master
+    jobs:
+      - test
+      - audit

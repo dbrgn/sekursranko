@@ -2,6 +2,9 @@
 
 ![Icon](safe.png)
 
+[![CircleCI][circle-ci-badge]][circle-ci]
+[![Rust][rust-badge]][github]
+
 An efficient and memory-safe Threema Safe server implementation
 written in Rust.
 
@@ -85,3 +88,9 @@ Licensed under either of
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in the work by you, as defined in the Apache-2.0 license, shall
 be dual licensed as above, without any additional terms or conditions.
+
+<!-- Badges -->
+[circle-ci]: https://circleci.com/gh/dbrgn/sekursranko/tree/master
+[circle-ci-badge]: https://circleci.com/gh/dbrgn/sekursranko/tree/master.svg?style=shield
+[github]: https://github.com/dbrgn/sekursranko
+[rust-badge]: https://img.shields.io/badge/rust-1.31%2B-blue.svg?maxAge=3600
