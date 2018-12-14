@@ -1,0 +1,5 @@
+max_backup_bytes = 524288
+retention_days = 1460
+backup_dir = "backups"
+io_threads = 4
+listen_on = "127.0.0.1:3000"

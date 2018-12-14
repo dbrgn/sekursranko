@@ -1,4 +1,5 @@
 use std::convert::From;
+use std::fmt;
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -16,6 +17,8 @@ pub struct ServerConfig {
     pub backup_dir: PathBuf,
     /// The number of threads for doing I/O (e.g. 4)
     pub io_threads: usize,
+    /// The listening address for the server (e.g. "127.0.0.1:3000")
+    pub listen_on: String,
 }
 
 impl ServerConfig {
@@ -36,6 +39,17 @@ impl ServerConfig {
         // Deserialize
         toml::from_str(&contents)
             .map_err(|e| format!("Could not deserialize config file: {}", e))
+    }
+}
+
+impl fmt::Display for ServerConfig {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "- Max backup bytes: {}", self.max_backup_bytes)?;
+        writeln!(f, "- Retention days: {}", self.retention_days)?;
+        writeln!(f, "- Backup directory: {:?}", self.backup_dir)?;
+        writeln!(f, "- I/O threads: {}", self.io_threads)?;
+        writeln!(f, "- Listening address: {}", self.listen_on)?;
+        Ok(())
     }
 }
 

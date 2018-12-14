@@ -10,5 +10,5 @@ mod service;
 pub use crate::config::{ServerConfig, ServerConfigPublic};
 pub use crate::service::BackupService;
 
-static NAME: &str = "Sekurŝranko";
-static VERSION: &str = env!("CARGO_PKG_VERSION");
+pub static NAME: &str = "Sekurŝranko";
+pub static VERSION: &str = env!("CARGO_PKG_VERSION");

@@ -22,7 +22,7 @@ provided.
 - [x] Download backups
 - [x] Upload backups
 - [x] Delete backups
-- [ ] Settings configurable by user
+- [x] Settings configurable by user
 - [ ] Throttling
 - [ ] Automatic cleanup of expired backups
 
@@ -53,15 +53,15 @@ In case you want to enable logging:
 
 ## Running
 
-Either build & run the binary directly with Cargo:
+Simply execute the binary with the `-c` or `--config` argument:
 
-    cargo run --release
+    ./sekursranko --config config.toml
 
-...or build and execute the generated binary.
+You can find an example configfile in this repository at `config.example.toml`.
 
 Configure logging using the `RUST_LOG` env var:
 
-    RUST_LOG=sekursranko=debug cargo run --release
+    RUST_LOG=sekursranko=debug ./sekursranko -c config.toml
 
 
 ## Name
