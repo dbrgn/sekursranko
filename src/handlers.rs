@@ -1,8 +1,10 @@
 use std::fs;
 use std::io::{Error as IoError, ErrorKind};
+use std::os::unix::fs::PermissionsExt;
+use std::path::Path;
 
 use futures::{future, sink::Sink};
-use futures_fs::{FsPool, ReadOptions, WriteOptions};
+use futures_fs::{FsPool, ReadOptions};
 use hyper::{Body, Request, Response};
 use hyper::{Method, StatusCode};
 use hyper::header;
@@ -176,6 +178,15 @@ fn handle_get_backup(
     Box::new(future::ok(resp))
 }
 
+// Create a file with permissions set to 0600.
+fn create_file(path: &Path) -> Result<fs::File, IoError> {
+    let file = fs::File::create(path)?;
+    let mut perms = file.metadata()?.permissions();
+    perms.set_mode(0o600);
+    file.set_permissions(perms)?;
+    Ok(file)
+}
+
 fn handle_put_backup(
     req: Request<Body>,
     config: &ServerConfig,
@@ -243,9 +254,21 @@ fn handle_put_backup(
         return Box::new(future::ok(resp));
     }
 
+    // Create the empty download file to ensure correct permissions before
+    // writing the data
+    let backup_file_dl = match create_file(&backup_path_dl) {
+        Ok(f) => f,
+        Err(e) => {
+            error!("Could not create file: {}", e);
+            *resp.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
+            *resp.body_mut() = Body::from("{\"detail\": \"Internal server error\"}");
+            return Box::new(future::ok(resp));
+        },
+    };
+
     // Write data
     let backup_id = backup_id.to_string();
-    let sink = fs_pool.write(backup_path_dl.clone(), WriteOptions::default());
+    let sink = fs_pool.write_file(backup_file_dl);
     let body_stream = req
         .into_body()
         .map(|chunk| chunk.into_bytes())

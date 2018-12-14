@@ -2,6 +2,7 @@ use std::env;
 use std::thread;
 use std::fs::File;
 use std::io::{Read, Write};
+use std::os::unix::fs::PermissionsExt;
 use std::sync::{Once, ONCE_INIT};
 
 use hyper::Server;
@@ -281,6 +282,10 @@ fn backup_upload_success_created() {
     let mut buffer = String::new();
     backup_file.read_to_string(&mut buffer).unwrap();
     assert_eq!(buffer, "tiu sekurkopio estas tre sekura!");
+
+    // Ensure restrictive permissions
+    let perms = backup_file.metadata().unwrap().permissions();
+    assert_eq!(perms.mode(), 0o100000 | 0o600);
 }
 
 /// Successfully update a backup.
