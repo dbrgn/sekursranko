@@ -106,12 +106,14 @@ mod tests {
         file.write_all(b"retention_days = 100\n").unwrap();
         file.write_all(b"backup_dir = \"backups\"\n").unwrap();
         file.write_all(b"io_threads = 4\n").unwrap();
+        file.write_all(b"listen_on = \"127.0.0.1:3000\"\n").unwrap();
         let res = ServerConfig::from_file(tempfile.path());
         assert_eq!(res.unwrap(), ServerConfig {
             max_backup_bytes: 10_000,
             retention_days: 100,
             backup_dir: PathBuf::from("backups"),
             io_threads: 4,
+            listen_on: "127.0.0.1:3000".to_string(),
         });
     }
 }

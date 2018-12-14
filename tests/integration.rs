@@ -43,6 +43,7 @@ impl TestServer {
             retention_days: 180,
             backup_dir: backup_dir.path().to_path_buf(),
             io_threads: 4,
+            listen_on: "-integrationtest-".to_string(),
         };
 
         // Run server
