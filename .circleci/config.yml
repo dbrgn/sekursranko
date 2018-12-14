@@ -9,9 +9,15 @@ jobs:
           keys:
             - v1-cargo-cache-{{ arch }}-{{ .Branch }}
             - v1-cargo-cache-{{ arch }}
-      - run: rustc --version && cargo --version
-      - run: cargo build
-      - run: cargo test
+      - run:
+          name: Show versions
+          command: rustc --version && cargo --version
+      - run:
+          name: Build
+          command: cargo build
+      - run:
+          name: Run tests
+          command: cargo test
       - save_cache:
           key: v1-cargo-cache-{{ arch }}-{{ .Branch }}
           paths:
@@ -26,6 +32,7 @@ jobs:
     docker:
       - image: rust:latest
     steps:
+      - checkout
       - run:
           name: Install cargo-audit
           command: cargo install --force cargo-audit
