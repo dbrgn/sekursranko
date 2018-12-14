@@ -93,4 +93,4 @@ be dual licensed as above, without any additional terms or conditions.
 [circle-ci]: https://circleci.com/gh/dbrgn/sekursranko/tree/master
 [circle-ci-badge]: https://circleci.com/gh/dbrgn/sekursranko/tree/master.svg?style=shield
 [github]: https://github.com/dbrgn/sekursranko
-[rust-badge]: https://img.shields.io/badge/rust-1.31%2B-blue.svg?maxAge=3600
+[rust-badge]: https://img.shields.io/badge/rust-2018%2B-blue.svg?maxAge=3600
