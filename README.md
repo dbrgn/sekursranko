@@ -54,6 +54,11 @@ In case you want to enable logging:
 
     RUST_LOG=sekursranko=trace cargo test
 
+To run linting:
+
+    rustup component add clippy
+    cargo clippy --all-targets --all-features
+
 
 ## Running
 

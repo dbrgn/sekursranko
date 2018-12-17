@@ -217,24 +217,27 @@ fn handle_put_backup(
     }
 
     // Get Content-Length header
-    let content_length: u64 = match req.headers()
-                                       .get(header::CONTENT_LENGTH)
-                                       .and_then(|v| v.to_str().ok())
-                                       .and_then(|v| v.parse().ok()) {
-        Some(len) => len,
-        None => {
-            warn!("Upload request has invalid content-length header: \"{:?}\"", req.headers().get(header::CONTENT_LENGTH));
-            *resp.status_mut() = StatusCode::BAD_REQUEST;
-            *resp.body_mut() = Body::from("{\"detail\": \"Invalid or missing content-length header\"}");
+    // We can trust that the actual body size will not be larger than the
+    // declared content length, because hyper will actually stop consuming data
+    // after the declared number of bytes have been processed.
+    let content_length: Option<u64> = req
+        .headers()
+        .get(header::CONTENT_LENGTH)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.parse().ok());
+    if let Some(length) = content_length {
+        if length > config.max_backup_bytes {
+            warn!("Upload request is too large ({} > {})", length, config.max_backup_bytes);
+            *resp.status_mut() = StatusCode::PAYLOAD_TOO_LARGE;
+            *resp.body_mut() = Body::from("{\"detail\": \"Backup is too large\"}");
             return Box::new(future::ok(resp));
         }
-    };
-    if content_length > config.max_backup_bytes {
-        warn!("Upload request is too large ({} > {})", content_length, config.max_backup_bytes);
-        *resp.status_mut() = StatusCode::PAYLOAD_TOO_LARGE;
-        *resp.body_mut() = Body::from("{\"detail\": \"Backup is too large\"}");
+    } else {
+        warn!("Upload request has invalid content-length header: \"{:?}\"", req.headers().get(header::CONTENT_LENGTH));
+        *resp.status_mut() = StatusCode::BAD_REQUEST;
+        *resp.body_mut() = Body::from("{\"detail\": \"Invalid or missing content-length header\"}");
         return Box::new(future::ok(resp));
-    }
+    };
 
     // Write the incoming stream to a temporary file. This is done to prevent
     // incomplete backups from being persisted.
