@@ -28,17 +28,38 @@ jobs:
           paths:
             - target
             - /usr/local/cargo
+  lint:
+    docker:
+      - image: rust:1.31
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-cargo-lint-cache
+      - run: rustup component add clippy
+      - run: cargo clippy --all-targets --all-features -- -D warnings
+      - save_cache:
+          key: v1-cargo-lint-cache
+          paths:
+            - /usr/local/cargo
   audit:
     docker:
       - image: rust:latest
     steps:
       - checkout
+      - restore_cache:
+          keys:
+            - v1-cargo-audit-cache
       - run:
           name: Install cargo-audit
           command: cargo install --force cargo-audit
       - run:
           name: Run cargo-audit
           command: cargo audit
+      - save_cache:
+          key: v1-cargo-audit-cache
+          paths:
+            - /usr/local/cargo
 
 workflows:
   version: 2
@@ -47,6 +68,7 @@ workflows:
   on_push:
     jobs:
       - test
+      - lint
       - audit
 
   # Build master every week on Monday at 04:00 am
@@ -60,4 +82,5 @@ workflows:
                 - master
     jobs:
       - test
+      - lint
       - audit
