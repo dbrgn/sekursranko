@@ -26,6 +26,7 @@ provided.
 - [x] Upload backups
 - [x] Delete backups
 - [x] Settings configurable by user
+- [x] User agent validation
 - [ ] Throttling
 - [ ] Automatic cleanup of expired backups
 
