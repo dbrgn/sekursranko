@@ -27,7 +27,7 @@ impl TestServer {
     fn new() -> Self {
         // Initialize logger
         LOGGER_INIT.call_once(|| {
-            if env::var("RUST_LOG").unwrap_or("".into()).is_empty() {
+            if env::var("RUST_LOG").unwrap_or_else(|_| "".into()).is_empty() {
                 env::set_var("RUST_LOG", "sekursranko=error");
             }
             env_logger::init();
@@ -40,7 +40,7 @@ impl TestServer {
 
         // Create config object
         let config = ServerConfig {
-            max_backup_bytes: 524288,
+            max_backup_bytes: 524_288,
             retention_days: 180,
             backup_dir: backup_dir.path().to_path_buf(),
             io_threads: 4,
@@ -285,7 +285,7 @@ fn backup_upload_success_created() {
 
     // Ensure restrictive permissions
     let perms = backup_file.metadata().unwrap().permissions();
-    assert_eq!(perms.mode(), 0o100000 | 0o600);
+    assert_eq!(perms.mode(), 0o100_000 | 0o600);
 }
 
 /// Successfully update a backup.
@@ -299,7 +299,7 @@ fn backup_upload_success_updated() {
     let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
     let backup_file_path = backup_dir.path().join(backup_id);
     let mut backup_file = File::create(&backup_file_path).expect("Could not create backup file");
-    backup_file.write(b"sekurkopio antikva").unwrap();
+    let _ = backup_file.write(b"sekurkopio antikva").unwrap();
 
     // Send upload request
     let mut res = upload_backup(&base_url, &backup_id, b"tiu sekurkopio estas tre sekura!".to_vec());
@@ -358,7 +358,7 @@ fn backup_delete_success() {
     let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
     let backup_file_path = backup_dir.path().join(backup_id);
     let mut backup_file = File::create(&backup_file_path).expect("Could not create backup file");
-    backup_file.write(b"sekurkopio antikva").unwrap();
+    let _ = backup_file.write(b"sekurkopio antikva").unwrap();
 
     // Ensure file was created
     assert!(backup_file_path.exists() && backup_file_path.is_file());
