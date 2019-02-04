@@ -7,7 +7,7 @@ COPY . /opt/sekursranko/
 RUN cd /opt/sekursranko \
 &&  cargo build --release --target x86_64-unknown-linux-musl
 
-FROM alpine:3.8
+FROM alpine:3.9
 
 RUN mkdir /sekursranko/ \
 &&  addgroup -S sekursranko \
