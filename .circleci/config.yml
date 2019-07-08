@@ -2,7 +2,7 @@ version: 2
 jobs:
   test:
     docker:
-      - image: rust:1.31
+      - image: rust:1.32
     steps:
       - checkout
       - restore_cache:
@@ -30,7 +30,7 @@ jobs:
             - /usr/local/cargo
   lint:
     docker:
-      - image: rust:1.31
+      - image: rust:1.32
     steps:
       - checkout
       - restore_cache:

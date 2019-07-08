@@ -33,7 +33,7 @@ provided.
 
 ## Building
 
-Sekurŝranko requires at least Rust 1.31.
+Sekurŝranko requires at least Rust 1.32.
 
 To make a release build:
 
