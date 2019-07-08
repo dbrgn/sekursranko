@@ -112,7 +112,7 @@ fn index_ok() {
     let text = res.text().unwrap();
     println!("{}", text);
     assert_eq!(res.status().as_u16(), 200);
-    assert_eq!(text, "Sekurŝranko 0.1.0");
+    assert_eq!(text, format!("Sekurŝranko {}", env!("CARGO_PKG_VERSION")));
 }
 
 #[test]
