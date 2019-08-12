@@ -13,12 +13,9 @@ The server spec can be found in the [Cryptography
 Whitepaper](https://threema.ch/press-files/2_documentation/cryptography_whitepaper.pdf).
 
 
-## Status
+## Features
 
-Work in progress. The core functionality is implemented, but some additional
-things like throttling or expiration still need to be handled. Currently, the
-server needs to be manually compiled, but in the future binary builds will be
-provided.
+The following features are implemented:
 
 - [x] Request config
 - [x] Download backups
@@ -26,8 +23,15 @@ provided.
 - [x] Delete backups
 - [x] Settings configurable by user
 - [x] User agent validation
-- [ ] Throttling
+
+To be implemented:
+
 - [ ] Automatic cleanup of expired backups
+
+The following feature is out of scope and should be handled by another server
+component (e.g. Nginx):
+
+- [ ] Throttling
 
 
 ## Building
