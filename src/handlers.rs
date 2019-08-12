@@ -5,7 +5,7 @@ use std::path::Path;
 
 use futures::{future, sink::Sink};
 use futures_fs::{FsPool, ReadOptions};
-use hyper::{Body, Request, Response};
+use hyper::{Body, Request, Response, Chunk};
 use hyper::{Method, StatusCode};
 use hyper::header;
 use hyper::rt::{Future, Stream};
@@ -274,7 +274,7 @@ fn handle_put_backup(
     let sink = fs_pool.write_file(backup_file_dl);
     let body_stream = req
         .into_body()
-        .map(|chunk| chunk.into_bytes())
+        .map(Chunk::into_bytes)
         .map_err(|error: hyper::Error| IoError::new(ErrorKind::Other, error));
     let write_future = sink.send_all(body_stream);
     let response_future = write_future
