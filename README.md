@@ -3,7 +3,6 @@
 ![Icon](safe.png)
 
 [![CircleCI][circle-ci-badge]][circle-ci]
-[![Rust][rust-badge]][github]
 
 An efficient and memory-safe Threema Safe server implementation
 written in Rust.
@@ -33,7 +32,7 @@ provided.
 
 ## Building
 
-Sekurŝranko requires at least Rust 1.32.
+Sekurŝranko requires at least Rust 1.36.
 
 To make a release build:
 
@@ -106,5 +105,3 @@ be dual licensed as above, without any additional terms or conditions.
 <!-- Badges -->
 [circle-ci]: https://circleci.com/gh/dbrgn/sekursranko/tree/master
 [circle-ci-badge]: https://circleci.com/gh/dbrgn/sekursranko/tree/master.svg?style=shield
-[github]: https://github.com/dbrgn/sekursranko
-[rust-badge]: https://img.shields.io/badge/rust-2018%2B-blue.svg?maxAge=3600
