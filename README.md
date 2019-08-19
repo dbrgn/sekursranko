@@ -3,7 +3,6 @@
 ![Icon](safe.png)
 
 [![CircleCI][circle-ci-badge]][circle-ci]
-[![Rust][rust-badge]][github]
 
 An efficient and memory-safe Threema Safe server implementation
 written in Rust.
@@ -14,12 +13,9 @@ The server spec can be found in the [Cryptography
 Whitepaper](https://threema.ch/press-files/2_documentation/cryptography_whitepaper.pdf).
 
 
-## Status
+## Features
 
-Work in progress. The core functionality is implemented, but some additional
-things like throttling or expiration still need to be handled. Currently, the
-server needs to be manually compiled, but in the future binary builds will be
-provided.
+The following features are implemented:
 
 - [x] Request config
 - [x] Download backups
@@ -27,13 +23,20 @@ provided.
 - [x] Delete backups
 - [x] Settings configurable by user
 - [x] User agent validation
-- [ ] Throttling
+
+To be implemented:
+
 - [ ] Automatic cleanup of expired backups
+
+The following feature is out of scope and should be handled by another server
+component (e.g. Nginx):
+
+- [ ] Throttling
 
 
 ## Building
 
-Sekurŝranko requires at least Rust 1.32.
+Sekurŝranko requires at least Rust 1.36.
 
 To make a release build:
 
@@ -106,5 +109,3 @@ be dual licensed as above, without any additional terms or conditions.
 <!-- Badges -->
 [circle-ci]: https://circleci.com/gh/dbrgn/sekursranko/tree/master
 [circle-ci-badge]: https://circleci.com/gh/dbrgn/sekursranko/tree/master.svg?style=shield
-[github]: https://github.com/dbrgn/sekursranko
-[rust-badge]: https://img.shields.io/badge/rust-2018%2B-blue.svg?maxAge=3600
