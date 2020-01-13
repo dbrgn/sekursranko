@@ -1,17 +1,18 @@
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
+use std::task::{Context, Poll};
 
-use futures::future;
+use futures::future::{self, FutureExt};
 use futures_fs::FsPool;
 use hyper::{Body, Request, Response};
-use hyper::rt::Future;
-use hyper::service::{Service, NewService};
+use hyper::service::Service;
 use log::trace;
 
 use crate::config::ServerConfig;
 use crate::handlers::handler;
 
-pub type ResponseFuture = Box<dyn Future<Item = Response<Body>, Error = hyper::Error> + Send>;
-
+/// A `BackupService` wraps a configuration and a reference counted file system pool.
 #[derive(Debug, Clone)]
 pub struct BackupService {
     config: ServerConfig,
@@ -28,27 +29,45 @@ impl BackupService {
     }
 }
 
-impl Service for BackupService {
-    type ReqBody = Body;
-	type ResBody = Body;
+impl Service<Request<Body>> for BackupService {
+	type Response = Response<Body>;
 	type Error = hyper::Error;
-    type Future = ResponseFuture;
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
-    fn call(&mut self, req: Request<Self::ReqBody>) -> Self::Future {
+    fn poll_ready(&mut self, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, req: Request<Body>) -> Self::Future {
         trace!("BackupService::call");
-        handler(req, &self.config, &self.fs_pool)
+        // TODO: Find out how not to clone the config and the pool
+        handler(req, self.config.clone(), self.fs_pool.clone()).boxed()
     }
 }
 
-impl NewService for BackupService {
-    type ReqBody = Body;
-    type ResBody = Body;
-    type Error = hyper::Error;
-    type InitError = hyper::Error;
-    type Service = Self;
-    type Future = Box<dyn Future<Item = Self::Service, Error = Self::InitError> + Send>;
-    fn new_service(&self) -> Self::Future {
-        trace!("BackupService::new_service");
-        Box::new(future::ok(self.clone()))
+/// The `MakeBackupService` is here to create an instance of `BackupService`
+/// per connection. It does so by cloning the wrapped service.
+#[derive(Debug)]
+pub struct MakeBackupService(BackupService);
+
+impl MakeBackupService {
+    pub fn new(config: ServerConfig) -> Self {
+        Self(BackupService::new(config))
+    }
+}
+
+impl<T> Service<T> for MakeBackupService {
+    type Response = BackupService;
+    type Error = std::io::Error;
+    type Future = future::Ready<Result<Self::Response, Self::Error>>;
+
+
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, _: T) -> Self::Future {
+        trace!("MakeBackupService::call");
+        future::ok(self.0.clone())
     }
 }

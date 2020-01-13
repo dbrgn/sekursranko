@@ -8,7 +8,7 @@ mod handlers;
 mod service;
 
 pub use crate::config::{ServerConfig, ServerConfigPublic};
-pub use crate::service::BackupService;
+pub use crate::service::{BackupService, MakeBackupService};
 
 pub static NAME: &str = "Sekurŝranko";
 pub static VERSION: &str = env!("CARGO_PKG_VERSION");

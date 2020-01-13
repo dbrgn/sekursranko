@@ -2,12 +2,14 @@ use std::path::Path;
 
 use clap::{Arg, App};
 use env_logger;
-use hyper::{Server, rt::Future, rt::run as hyper_run};
+use futures::future::TryFutureExt;
+use hyper::Server;
 use log::error;
 
-use sekursranko::{BackupService, ServerConfig};
+use sekursranko::{MakeBackupService, ServerConfig};
 
-fn main() {
+#[tokio::main]
+async fn main() -> Result<(), ()> {
     env_logger::init();
 
     let matches = App::new(sekursranko::NAME)
@@ -37,12 +39,13 @@ fn main() {
     println!("Starting {} server with the following configuration:\n\n{}", sekursranko::NAME, &config);
 
     // Create server
-    let context = BackupService::new(config);
+    let context = MakeBackupService::new(config);
     let server = Server::bind(&addr)
         .serve(context)
         .map_err(|e| error!("Server error: {}", e));
 
+    // Serve
+    server.await?;
 
-    // Loop forever
-    hyper_run(server);
+    Ok(())
 }
