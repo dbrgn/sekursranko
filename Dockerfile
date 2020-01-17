@@ -9,6 +9,8 @@ RUN cd /opt/sekursranko \
 
 FROM alpine:3.11
 
+RUN apk update && apk add dumb-init
+
 RUN mkdir /sekursranko/ \
 &&  addgroup -S sekursranko \
 &&  adduser -S -G sekursranko sekursranko \
@@ -27,4 +29,7 @@ WORKDIR /sekursranko
 
 USER sekursranko
 
+# Note: Use dumb-init in order to fulfil our PID 1 responsibilities,
+# see https://github.com/Yelp/dumb-init
+ENTRYPOINT [ "/usr/bin/dumb-init", "--" ]
 CMD [ "sekursranko", "--config", "/etc/sekursranko/config.toml" ]
