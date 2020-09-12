@@ -1,7 +1,6 @@
 use std::path::Path;
 
 use clap::{Arg, App};
-use env_logger;
 use hyper::{Server, rt::Future, rt::run as hyper_run};
 use log::error;
 

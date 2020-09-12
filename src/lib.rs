@@ -1,5 +1,6 @@
 #![deny(clippy::all)]
 #![warn(clippy::pedantic)]
+#![allow(clippy::missing_errors_doc)]
 #![allow(clippy::module_name_repetitions)]
 #![allow(clippy::non_ascii_literal)]
 

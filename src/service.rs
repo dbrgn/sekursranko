@@ -19,6 +19,7 @@ pub struct BackupService {
 }
 
 impl BackupService {
+    #[allow(clippy::must_use_candidate)]
     pub fn new(config: ServerConfig) -> Self {
         let io_threads = config.io_threads;
         Self {
