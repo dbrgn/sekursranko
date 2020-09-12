@@ -3,7 +3,7 @@ use std::thread;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::os::unix::fs::PermissionsExt;
-use std::sync::{Once, ONCE_INIT};
+use std::sync::Once;
 
 use hyper::Server;
 use hyper::rt::{run as hyper_run, Future};
@@ -12,7 +12,7 @@ use tempfile::{self, TempDir};
 
 use sekursranko::{BackupService, ServerConfig};
 
-static LOGGER_INIT: Once = ONCE_INIT;
+static LOGGER_INIT: Once = Once::new();
 
 struct TestServer {
     #[allow(dead_code)]
