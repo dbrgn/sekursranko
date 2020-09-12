@@ -30,7 +30,7 @@ jobs:
             - /usr/local/cargo
   lint:
     docker:
-      - image: rust:1.36
+      - image: rust:1.46
     steps:
       - checkout
       - restore_cache:
