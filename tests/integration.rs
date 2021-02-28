@@ -1,22 +1,23 @@
 use std::env;
-use std::thread;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::os::unix::fs::PermissionsExt;
 use std::sync::Once;
+use std::thread;
 
 use hyper::Server;
-use hyper::rt::{run as hyper_run, Future};
-use reqwest::{Client, Method, Response, header};
+use reqwest::{
+    blocking::{Client, Response},
+    header, Method,
+};
 use tempfile::{self, TempDir};
 
-use sekursranko::{BackupService, ServerConfig};
+use sekursranko::{MakeBackupService, ServerConfig};
 
 static LOGGER_INIT: Once = Once::new();
 
 struct TestServer {
-    #[allow(dead_code)]
-    handle: thread::JoinHandle<()>,
+    _handle: thread::JoinHandle<()>,
     base_url: String,
     backup_dir: TempDir,
     config: ServerConfig,
@@ -27,7 +28,10 @@ impl TestServer {
     fn new() -> Self {
         // Initialize logger
         LOGGER_INIT.call_once(|| {
-            if env::var("RUST_LOG").unwrap_or_else(|_| "".into()).is_empty() {
+            if env::var("RUST_LOG")
+                .unwrap_or_else(|_| "".into())
+                .is_empty()
+            {
                 env::set_var("RUST_LOG", "sekursranko=error");
             }
             env_logger::init();
@@ -35,29 +39,49 @@ impl TestServer {
 
         // Create backup tmpdir
         let backup_dir = tempfile::Builder::new()
-                .prefix("sekursranko-test")
-                .tempdir().expect("Could not create temporary backup directory");
+            .prefix("sekursranko-test")
+            .tempdir()
+            .expect("Could not create temporary backup directory");
 
         // Create config object
         let config = ServerConfig {
             max_backup_bytes: 524_288,
             retention_days: 180,
             backup_dir: backup_dir.path().to_path_buf(),
-            io_threads: 4,
             listen_on: "-integrationtest-".to_string(),
         };
 
         // Run server
         let addr = ([127, 0, 0, 1], 0).into();
-        let service = BackupService::new(config.clone());
-        let server = Server::bind(&addr).serve(service);
-        let port = server.local_addr().port();
+        let service = MakeBackupService::new(config.clone());
+        let (port_tx, port_rx) = std::sync::mpsc::channel();
         let handle = thread::spawn(move || {
-            hyper_run(server.map_err(|e| eprintln!("Server error: {}", e)));
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            rt.block_on(async move {
+                let server = Server::bind(&addr).serve(service);
+                let port = server.local_addr().port();
+
+                // Using port 0 when binding, we can know the final port only
+                // once the server starts. Therefore, we use a channel to send
+                // the final port outside this thread.
+                port_tx.send(port).unwrap();
+
+                // Run server until completion
+                if let Err(e) = server.await {
+                    eprintln!("Server error: {}", e);
+                    std::process::exit(1);
+                };
+            });
         });
+        let port = port_rx.recv().unwrap();
         let base_url = format!("http://127.0.0.1:{}", port);
 
-        TestServer { handle, base_url, backup_dir, config }
+        TestServer {
+            _handle: handle,
+            base_url,
+            backup_dir,
+            config,
+        }
     }
 }
 
@@ -72,7 +96,7 @@ macro_rules! user_agent_required {
                 .unwrap();
             assert_eq!(res.status().as_u16(), 400);
         }
-    }
+    };
 }
 
 user_agent_required!(user_agent_required_index, "/");
@@ -91,7 +115,7 @@ macro_rules! method_not_allowed {
                 .unwrap();
             assert_eq!(res.status().as_u16(), 405);
         }
-    }
+    };
 }
 
 method_not_allowed!(method_not_allowed_index_post, Method::POST, "/");
@@ -99,33 +123,37 @@ method_not_allowed!(method_not_allowed_index_delete, Method::DELETE, "/");
 method_not_allowed!(method_not_allowed_config_put, Method::PUT, "/config");
 method_not_allowed!(method_not_allowed_config_post, Method::POST, "/config");
 method_not_allowed!(method_not_allowed_config_delete, Method::DELETE, "/config");
-method_not_allowed!(method_not_allowed_backup_post, Method::POST, "/backups/abcd1234");
+method_not_allowed!(
+    method_not_allowed_backup_post,
+    Method::POST,
+    "/backups/abcd1234"
+);
 
 #[test]
 fn index_ok() {
     let TestServer { base_url, .. } = TestServer::new();
-    let mut res = Client::new()
+    let res = Client::new()
         .get(&base_url)
         .header(header::USER_AGENT, "A Threema B")
         .send()
         .unwrap();
+    assert_eq!(res.status().as_u16(), 200);
     let text = res.text().unwrap();
     println!("{}", text);
-    assert_eq!(res.status().as_u16(), 200);
     assert_eq!(text, format!("Sekurŝranko {}", env!("CARGO_PKG_VERSION")));
 }
 
 #[test]
 fn config_require_json() {
     let TestServer { base_url, .. } = TestServer::new();
-    let mut res = Client::new()
+    let res = Client::new()
         .get(&format!("{}/config", base_url))
         .header(header::USER_AGENT, "Threema")
         .send()
         .unwrap();
+    assert_eq!(res.status().as_u16(), 400);
     let text = res.text().unwrap();
     println!("{}", text);
-    assert_eq!(res.status().as_u16(), 400);
     assert_eq!(text, "{\"detail\": \"Invalid accept header\"}");
 }
 
@@ -133,15 +161,15 @@ fn config_require_json() {
 fn backup_download_require_octet_stream() {
     let TestServer { base_url, .. } = TestServer::new();
     let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-    let mut res = Client::new()
+    let res = Client::new()
         .get(&format!("{}/backups/{}", base_url, backup_id))
         .header(header::USER_AGENT, "Threema")
         .header(header::ACCEPT, "application/json")
         .send()
         .unwrap();
+    assert_eq!(res.status().as_u16(), 400);
     let text = res.text().unwrap();
     println!("{}", text);
-    assert_eq!(res.status().as_u16(), 400);
     assert_eq!(text, "{\"detail\": \"Invalid accept header\"}");
 }
 
@@ -149,33 +177,37 @@ fn backup_download_require_octet_stream() {
 fn backup_download_not_found() {
     let TestServer { base_url, .. } = TestServer::new();
     let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-    let mut res = Client::new()
+    let res = Client::new()
         .get(&format!("{}/backups/{}", base_url, backup_id))
         .header(header::USER_AGENT, "Threema")
         .header(header::ACCEPT, "application/octet-stream")
         .send()
         .unwrap();
+    assert_eq!(res.status().as_u16(), 404);
     let text = res.text().unwrap();
     println!("{}", text);
-    assert_eq!(res.status().as_u16(), 404);
     assert_eq!(text, "");
 }
 
 #[test]
 fn backup_download_ok() {
-    let TestServer { base_url, backup_dir, .. } = TestServer::new();
+    let TestServer {
+        base_url,
+        backup_dir,
+        ..
+    } = TestServer::new();
     let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
     let mut file = File::create(backup_dir.path().join(backup_id)).unwrap();
     file.write_all(b"tre sekura").unwrap();
-    let mut res = Client::new()
+    let res = Client::new()
         .get(&format!("{}/backups/{}", base_url, backup_id))
         .header(header::USER_AGENT, "Threema")
         .header(header::ACCEPT, "application/octet-stream")
         .send()
         .unwrap();
+    assert_eq!(res.status().as_u16(), 200);
     let text = res.text().unwrap();
     println!("{}", text);
-    assert_eq!(res.status().as_u16(), 200);
     assert_eq!(text, "tre sekura");
 }
 
@@ -183,15 +215,15 @@ fn backup_download_ok() {
 fn backup_upload_require_octet_stream() {
     let TestServer { base_url, .. } = TestServer::new();
     let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-    let mut res = Client::new()
+    let res = Client::new()
         .put(&format!("{}/backups/{}", base_url, backup_id))
         .header(header::USER_AGENT, "Threema")
         .header(header::CONTENT_TYPE, "application/json")
         .send()
         .unwrap();
+    assert_eq!(res.status().as_u16(), 400);
     let text = res.text().unwrap();
     println!("{}", text);
-    assert_eq!(res.status().as_u16(), 400);
     assert_eq!(text, "{\"detail\": \"Invalid content-type header\"}");
 }
 
@@ -199,15 +231,15 @@ fn backup_upload_require_octet_stream() {
 fn backup_upload_invalid_backup_id() {
     let TestServer { base_url, .. } = TestServer::new();
     let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789gggggg";
-    let mut res = Client::new()
+    let res = Client::new()
         .put(&format!("{}/backups/{}", base_url, backup_id))
         .header(header::USER_AGENT, "Threema")
         .header(header::CONTENT_TYPE, "application/octet-stream")
         .send()
         .unwrap();
+    assert_eq!(res.status().as_u16(), 400);
     let text = res.text().unwrap();
     println!("{}", text);
-    assert_eq!(res.status().as_u16(), 400);
     assert_eq!(text, "{\"detail\": \"Invalid backup ID\"}");
 }
 
@@ -215,18 +247,23 @@ fn backup_upload_invalid_backup_id() {
 /// content-length header).
 #[test]
 fn backup_upload_payload_not_too_large() {
-    let TestServer { base_url, config, .. } = TestServer::new();
+    let TestServer {
+        base_url, config, ..
+    } = TestServer::new();
     let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-    let mut res = Client::new()
+    let res = Client::new()
         .put(&format!("{}/backups/{}", base_url, backup_id))
         .header(header::USER_AGENT, "Threema")
         .header(header::CONTENT_TYPE, "application/octet-stream")
-        .header(header::CONTENT_LENGTH, format!("{}", config.max_backup_bytes))
+        .header(
+            header::CONTENT_LENGTH,
+            format!("{}", config.max_backup_bytes),
+        )
         .send()
         .unwrap();
+    assert_ne!(res.status().as_u16(), 413);
     let text = res.text().unwrap();
     println!("{}", text);
-    assert_ne!(res.status().as_u16(), 413);
     assert_ne!(text, "{\"detail\": \"Backup is too large\"}");
 }
 
@@ -234,18 +271,23 @@ fn backup_upload_payload_not_too_large() {
 /// header).
 #[test]
 fn backup_upload_payload_too_large() {
-    let TestServer { base_url, config, .. } = TestServer::new();
+    let TestServer {
+        base_url, config, ..
+    } = TestServer::new();
     let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-    let mut res = Client::new()
+    let res = Client::new()
         .put(&format!("{}/backups/{}", base_url, backup_id))
         .header(header::USER_AGENT, "Threema")
         .header(header::CONTENT_TYPE, "application/octet-stream")
-        .header(header::CONTENT_LENGTH, format!("{}", config.max_backup_bytes + 1))
+        .header(
+            header::CONTENT_LENGTH,
+            format!("{}", config.max_backup_bytes + 1),
+        )
         .send()
         .unwrap();
+    assert_eq!(res.status().as_u16(), 413);
     let text = res.text().unwrap();
     println!("{}", text);
-    assert_eq!(res.status().as_u16(), 413);
     assert_eq!(text, "{\"detail\": \"Backup is too large\"}");
 }
 
@@ -263,21 +305,32 @@ fn upload_backup(base_url: &str, backup_id: &str, body: Vec<u8>) -> Response {
 #[test]
 fn backup_upload_success_created() {
     // Test env
-    let TestServer { base_url, backup_dir, .. } = TestServer::new();
+    let TestServer {
+        base_url,
+        backup_dir,
+        ..
+    } = TestServer::new();
     assert!(backup_dir.path().exists());
 
     // Send upload request
     let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-    let mut res = upload_backup(&base_url, &backup_id, b"tiu sekurkopio estas tre sekura!".to_vec());
+    let res = upload_backup(
+        &base_url,
+        &backup_id,
+        b"tiu sekurkopio estas tre sekura!".to_vec(),
+    );
+    assert_eq!(res.status().as_u16(), 201);
     let text = res.text().unwrap();
     println!("{}", text);
-    assert_eq!(res.status().as_u16(), 201);
     assert_eq!(text, "");
 
     // Verify result
     let backup_file_path = backup_dir.path().join(backup_id);
     assert!(backup_file_path.exists(), "Backup file does not exist");
-    assert!(backup_file_path.is_file(), "Backup file is not a regular file");
+    assert!(
+        backup_file_path.is_file(),
+        "Backup file is not a regular file"
+    );
     let mut backup_file = File::open(backup_file_path).expect("Could not open backup file");
     let mut buffer = String::new();
     backup_file.read_to_string(&mut buffer).unwrap();
@@ -292,7 +345,11 @@ fn backup_upload_success_created() {
 #[test]
 fn backup_upload_success_updated() {
     // Test env
-    let TestServer { base_url, backup_dir, .. } = TestServer::new();
+    let TestServer {
+        base_url,
+        backup_dir,
+        ..
+    } = TestServer::new();
     assert!(backup_dir.path().exists());
 
     // Create existing upload file
@@ -302,15 +359,22 @@ fn backup_upload_success_updated() {
     let _ = backup_file.write(b"sekurkopio antikva").unwrap();
 
     // Send upload request
-    let mut res = upload_backup(&base_url, &backup_id, b"tiu sekurkopio estas tre sekura!".to_vec());
+    let res = upload_backup(
+        &base_url,
+        &backup_id,
+        b"tiu sekurkopio estas tre sekura!".to_vec(),
+    );
+    assert_eq!(res.status().as_u16(), 204);
     let text = res.text().unwrap();
     println!("{}", text);
-    assert_eq!(res.status().as_u16(), 204);
     assert_eq!(text, "");
 
     // Verify result
     assert!(backup_file_path.exists(), "Backup file does not exist");
-    assert!(backup_file_path.is_file(), "Backup file is not a regular file");
+    assert!(
+        backup_file_path.is_file(),
+        "Backup file is not a regular file"
+    );
     let mut backup_file = File::open(backup_file_path).expect("Could not open backup file");
     let mut buffer = String::new();
     backup_file.read_to_string(&mut buffer).unwrap();
@@ -321,14 +385,14 @@ fn backup_upload_success_updated() {
 fn backup_delete_invalid_backup_id() {
     let TestServer { base_url, .. } = TestServer::new();
     let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789gggggg";
-    let mut res = Client::new()
+    let res = Client::new()
         .delete(&format!("{}/backups/{}", base_url, backup_id))
         .header(header::USER_AGENT, "Threema")
         .send()
         .unwrap();
+    assert_eq!(res.status().as_u16(), 400);
     let text = res.text().unwrap();
     println!("{}", text);
-    assert_eq!(res.status().as_u16(), 400);
     assert_eq!(text, "{\"detail\": \"Invalid backup ID\"}");
 }
 
@@ -336,14 +400,14 @@ fn backup_delete_invalid_backup_id() {
 fn backup_delete_not_found() {
     let TestServer { base_url, .. } = TestServer::new();
     let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789ffffff";
-    let mut res = Client::new()
+    let res = Client::new()
         .delete(&format!("{}/backups/{}", base_url, backup_id))
         .header(header::USER_AGENT, "Threema")
         .send()
         .unwrap();
+    assert_eq!(res.status().as_u16(), 404);
     let text = res.text().unwrap();
     println!("{}", text);
-    assert_eq!(res.status().as_u16(), 404);
     assert_eq!(text, "");
 }
 
@@ -351,7 +415,11 @@ fn backup_delete_not_found() {
 #[test]
 fn backup_delete_success() {
     // Test env
-    let TestServer { base_url, backup_dir, .. } = TestServer::new();
+    let TestServer {
+        base_url,
+        backup_dir,
+        ..
+    } = TestServer::new();
     assert!(backup_dir.path().exists());
 
     // Create existing upload file
@@ -364,14 +432,14 @@ fn backup_delete_success() {
     assert!(backup_file_path.exists() && backup_file_path.is_file());
 
     // Send delete request
-    let mut res = Client::new()
+    let res = Client::new()
         .delete(&format!("{}/backups/{}", base_url, backup_id))
         .header(header::USER_AGENT, "Threema")
         .send()
         .unwrap();
+    assert_eq!(res.status().as_u16(), 204);
     let text = res.text().unwrap();
     println!("{}", text);
-    assert_eq!(res.status().as_u16(), 204);
     assert_eq!(text, "");
 
     // Ensure file was deleted

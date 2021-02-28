@@ -1,55 +1,67 @@
-use std::sync::Arc;
+use std::{
+    future::Future,
+    pin::Pin,
+    sync::Arc,
+    task::{Context, Poll},
+};
 
-use futures::future;
-use futures_fs::FsPool;
-use hyper::{Body, Request, Response};
-use hyper::rt::Future;
-use hyper::service::{Service, NewService};
+use hyper::{service::Service, Body, Request, Response};
 use log::trace;
 
-use crate::config::ServerConfig;
-use crate::handlers::handler;
+use crate::{config::ServerConfig, handlers::handler};
 
-pub type ResponseFuture = Box<dyn Future<Item = Response<Body>, Error = hyper::Error> + Send>;
+// Note: Implementation based on `service_struct_impl.rs` example in the hyper repo.
 
+/// A `BackupService` wraps a configuration and a reference counted file system pool.
 #[derive(Debug, Clone)]
 pub struct BackupService {
-    config: ServerConfig,
-    fs_pool: Arc<FsPool>,
+    config: Arc<ServerConfig>,
 }
 
-impl BackupService {
-    #[allow(clippy::must_use_candidate)]
+impl Service<Request<Body>> for BackupService {
+    type Response = Response<Body>;
+    type Error = hyper::Error;
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+
+    fn poll_ready(&mut self, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, req: Request<Body>) -> Self::Future {
+        trace!("BackupService::call");
+
+        // Copy Arc reference that will be moved into the future
+        let config = self.config.clone();
+
+        // Call handler
+        Box::pin(async move { handler(req, &config).await })
+    }
+}
+
+pub struct MakeBackupService {
+    config: Arc<ServerConfig>,
+}
+
+impl MakeBackupService {
     pub fn new(config: ServerConfig) -> Self {
-        let io_threads = config.io_threads;
         Self {
-            config,
-            fs_pool: Arc::new(FsPool::new(io_threads)),
+            config: Arc::new(config),
         }
     }
 }
 
-impl Service for BackupService {
-    type ReqBody = Body;
-	type ResBody = Body;
-	type Error = hyper::Error;
-    type Future = ResponseFuture;
-
-    fn call(&mut self, req: Request<Self::ReqBody>) -> Self::Future {
-        trace!("BackupService::call");
-        handler(req, &self.config, &self.fs_pool)
-    }
-}
-
-impl NewService for BackupService {
-    type ReqBody = Body;
-    type ResBody = Body;
+impl<T> Service<T> for MakeBackupService {
+    type Response = BackupService;
     type Error = hyper::Error;
-    type InitError = hyper::Error;
-    type Service = Self;
-    type Future = Box<dyn Future<Item = Self::Service, Error = Self::InitError> + Send>;
-    fn new_service(&self) -> Self::Future {
-        trace!("BackupService::new_service");
-        Box::new(future::ok(self.clone()))
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+
+    fn poll_ready(&mut self, _: &mut Context) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, _: T) -> Self::Future {
+        let config = self.config.clone();
+        let fut = async move { Ok(BackupService { config }) };
+        Box::pin(fut)
     }
 }
