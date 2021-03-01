@@ -314,6 +314,7 @@ async fn write_backup(mut body: Body, backup_id: &str, backup_path: &Path) -> an
         let mut rng = rand::thread_rng();
         std::iter::repeat(())
             .map(|_| rng.sample(rand::distributions::Alphanumeric))
+            .map(char::from)
             .take(10)
             .collect()
     };
