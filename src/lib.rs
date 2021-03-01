@@ -2,6 +2,7 @@
 
 mod config;
 mod handlers;
+mod routing;
 mod service;
 
 pub use crate::{

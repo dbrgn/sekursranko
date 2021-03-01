@@ -5,17 +5,12 @@ use futures::StreamExt;
 use hyper::{header, Body, Method, Request, Response, StatusCode};
 use log::{debug, error, info, trace, warn};
 use rand::Rng;
-use route_recognizer::Router;
 use tokio::{fs, io::AsyncWriteExt};
 
-use crate::config::{ServerConfig, ServerConfigPublic};
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-enum Route {
-    Index,
-    Config,
-    Backup,
-}
+use crate::{
+    config::{ServerConfig, ServerConfigPublic},
+    routing::{Route, Router},
+};
 
 macro_rules! require_accept_starts_with {
     ($req:expr, $accept:expr) => {
@@ -64,6 +59,7 @@ macro_rules! require_content_type_is {
 /// Main handler.
 pub async fn handler(
     req: Request<Body>,
+    router: &Router,
     config: &ServerConfig,
 ) -> Result<Response<Body>, hyper::Error> {
     // Verify headers
@@ -81,13 +77,6 @@ pub async fn handler(
                 .expect("Could not create response"));
         }
     }
-
-    // Route to handlers
-    // TODO: Don't construct inside handler
-    let mut router = Router::new();
-    router.add("/", Route::Index);
-    router.add("/config", Route::Config);
-    router.add("/backups/:backupId", Route::Backup);
 
     let response = if let Ok(route_match) = router.recognize(req.uri().path()) {
         match route_match.handler() {
