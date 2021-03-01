@@ -4,7 +4,7 @@ use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
-use serde_derive::{Serialize, Deserialize};
+use serde_derive::{Deserialize, Serialize};
 
 /// The server configuration.
 #[derive(Debug, Clone, Deserialize, PartialEq)]
@@ -15,8 +15,6 @@ pub struct ServerConfig {
     pub retention_days: u32,
     /// The path to the directory where backups will be stored
     pub backup_dir: PathBuf,
-    /// The number of threads for doing I/O (e.g. 4)
-    pub io_threads: usize,
     /// The listening address for the server (e.g. "127.0.0.1:3000")
     pub listen_on: String,
 }
@@ -30,15 +28,14 @@ impl ServerConfig {
         if !config_path.is_file() {
             return Err(format!("Config file at {:?} is not a file", config_path));
         }
-        let mut file = File::open(config_path)
-            .map_err(|e| format!("Could not open config file: {}", e))?;
+        let mut file =
+            File::open(config_path).map_err(|e| format!("Could not open config file: {}", e))?;
         let mut contents = String::new();
         file.read_to_string(&mut contents)
             .map_err(|e| format!("Could not read config file: {}", e))?;
 
         // Deserialize
-        toml::from_str(&contents)
-            .map_err(|e| format!("Could not deserialize config file: {}", e))
+        toml::from_str(&contents).map_err(|e| format!("Could not deserialize config file: {}", e))
     }
 }
 
@@ -47,7 +44,6 @@ impl fmt::Display for ServerConfig {
         writeln!(f, "- Max backup bytes: {}", self.max_backup_bytes)?;
         writeln!(f, "- Retention days: {}", self.retention_days)?;
         writeln!(f, "- Backup directory: {:?}", self.backup_dir)?;
-        writeln!(f, "- I/O threads: {}", self.io_threads)?;
         writeln!(f, "- Listening address: {}", self.listen_on)?;
         Ok(())
     }
@@ -87,7 +83,10 @@ mod tests {
         let path = Path::new("/tmp/asdfklasdfjaklsdfjlk");
         let res = ServerConfig::from_file(path);
         assert!(res.is_err());
-        assert_eq!(res.unwrap_err(), format!("Config file at {:?} does not exist", path));
+        assert_eq!(
+            res.unwrap_err(),
+            format!("Config file at {:?} does not exist", path)
+        );
     }
 
     #[test]
@@ -95,7 +94,10 @@ mod tests {
         let path = Path::new("/bin");
         let res = ServerConfig::from_file(path);
         assert!(res.is_err());
-        assert_eq!(res.unwrap_err(), format!("Config file at {:?} is not a file", path));
+        assert_eq!(
+            res.unwrap_err(),
+            format!("Config file at {:?} is not a file", path)
+        );
     }
 
     #[test]
@@ -105,15 +107,16 @@ mod tests {
         file.write_all(b"max_backup_bytes = 10000\n").unwrap();
         file.write_all(b"retention_days = 100\n").unwrap();
         file.write_all(b"backup_dir = \"backups\"\n").unwrap();
-        file.write_all(b"io_threads = 4\n").unwrap();
         file.write_all(b"listen_on = \"127.0.0.1:3000\"\n").unwrap();
         let res = ServerConfig::from_file(tempfile.path());
-        assert_eq!(res.unwrap(), ServerConfig {
-            max_backup_bytes: 10_000,
-            retention_days: 100,
-            backup_dir: PathBuf::from("backups"),
-            io_threads: 4,
-            listen_on: "127.0.0.1:3000".to_string(),
-        });
+        assert_eq!(
+            res.unwrap(),
+            ServerConfig {
+                max_backup_bytes: 10_000,
+                retention_days: 100,
+                backup_dir: PathBuf::from("backups"),
+                listen_on: "127.0.0.1:3000".to_string(),
+            }
+        );
     }
 }

@@ -36,8 +36,6 @@ component (e.g. Nginx):
 
 ## Building
 
-Sekurŝranko requires at least Rust 1.40.
-
 To make a release build:
 
     cargo build --release
