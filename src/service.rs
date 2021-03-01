@@ -18,10 +18,12 @@ pub struct BackupService {
     config: Arc<ServerConfig>,
 }
 
+type PinBox<T> = Pin<Box<T>>;
+
 impl Service<Request<Body>> for BackupService {
     type Response = Response<Body>;
     type Error = hyper::Error;
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+    type Future = PinBox<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>;
 
     fn poll_ready(&mut self, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
@@ -53,7 +55,7 @@ impl MakeBackupService {
 impl<T> Service<T> for MakeBackupService {
     type Response = BackupService;
     type Error = hyper::Error;
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+    type Future = PinBox<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>;
 
     fn poll_ready(&mut self, _: &mut Context) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
