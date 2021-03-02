@@ -34,6 +34,22 @@ component (e.g. Nginx):
 - [ ] Throttling
 
 
+## Running
+
+You can either build Sekurŝranko yourself, or use the [provided Docker
+image](https://hub.docker.com/r/dbrgn/sekursranko):
+
+    docker run \
+        -v /sekursranko:/tmp/sekursranko \
+        -p 3000:3000 \
+        dbrgn/sekursranko:master
+
+The image should be re-built on every push, as well as every week.
+
+Note that I do not offer any guarantees for this published image. It's purely
+provided for convenience. For critical setups, build the image yourself.
+
+
 ## Building
 
 To make a release build:
