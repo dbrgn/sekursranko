@@ -1,6 +1,6 @@
 [package]
 name = "sekursranko"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Danilo Bargen <mail@dbrgn.ch>"]
 edition = "2018"
 

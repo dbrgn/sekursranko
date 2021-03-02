@@ -12,6 +12,11 @@ Possible log types:
 - `[security]` to invite users to upgrade in case of vulnerabilities.
 
 
+### v0.3.0 (2021-03-01)
+
+- [changed] Updated all dependencies
+- [changed] Some small performance optimizations
+
 ### v0.2.0 (2019-07-08)
 
 - [fixed] Security updates in transitive dependencies
