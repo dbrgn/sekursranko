@@ -32,6 +32,7 @@ The following feature is out of scope and should be handled by another server
 component (e.g. Nginx):
 
 - [ ] Throttling
+- [ ] TLS termination
 
 
 ## Running
