@@ -7,8 +7,8 @@ RUN cd /opt/sekursranko \
 FROM alpine:3.13
 RUN apk update && apk add dumb-init
 RUN mkdir /sekursranko/ \
- && addgroup -S sekursranko \
- && adduser -S -G sekursranko sekursranko \
+ && addgroup -g 1337 -S sekursranko \
+ && adduser -u 1337 -S -G sekursranko sekursranko \
  && chown sekursranko:sekursranko /sekursranko/ \
  && chmod 0700 /sekursranko/
 
