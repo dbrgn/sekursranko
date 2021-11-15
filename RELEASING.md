@@ -3,7 +3,8 @@
 Set variables:
 
     $ export VERSION=X.Y.Z
-    $ export GPG_KEY=80F04F84787842018F165B2475B14970B357F8F6
+    $ git config gpg.format ssh
+    $ git config user.signingkey 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIM7kBQZCsAc/yXDWQOv9U41nMT5MmmlE+eEEY4urrNdM danilo@c3po'
 
 Update version numbers:
 
@@ -16,8 +17,8 @@ Update changelog:
 
 Commit & tag:
 
-    $ git commit -S${GPG_KEY} -m "Release v${VERSION}"
-    $ git tag -s -u ${GPG_KEY} v${VERSION} -m "Version ${VERSION}"
+    $ git commit -S -m "Release v${VERSION}"
+    $ git tag -s v${VERSION} -m "Version ${VERSION}"
 
 Publish:
 
