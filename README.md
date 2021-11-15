@@ -100,7 +100,7 @@ TLS termination. That's why it currently doesn't support TLS directly.
 
 Note that you cannot backup to a server without TLS from the Threema app.
 
-In case you want to run Sekurŝranko in a Docker container: A Docker image is
+In case you want to run Sekurŝranko in a Docker container: A Dockerfile is
 provided in the source repository.
 
 
