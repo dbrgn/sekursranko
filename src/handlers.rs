@@ -89,7 +89,7 @@ pub async fn handler(
             }
             Route::Config => {
                 if req.method() == Method::GET {
-                    handle_config(&req, &config)
+                    handle_config(&req, config)
                 } else {
                     response_405_method_not_allowed()
                 }
@@ -288,7 +288,7 @@ async fn handle_put_backup(
         }
         Err(e) => {
             error!("Could not write backup: {}", e);
-            return response_500_internal_server_error();
+            response_500_internal_server_error()
         }
     }
 }
@@ -380,7 +380,7 @@ async fn handle_delete_backup(config: &ServerConfig, backup_id: &str) -> Respons
             .expect("Could not create response"),
         Err(e) => {
             error!("Could not delete backup at {:?}: {}", &backup_path, e);
-            return response_500_internal_server_error();
+            response_500_internal_server_error()
         }
     }
 }

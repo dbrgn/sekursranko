@@ -316,7 +316,7 @@ fn backup_upload_success_created() {
     let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
     let res = upload_backup(
         &base_url,
-        &backup_id,
+        backup_id,
         b"tiu sekurkopio estas tre sekura!".to_vec(),
     );
     assert_eq!(res.status().as_u16(), 201);
@@ -361,7 +361,7 @@ fn backup_upload_success_updated() {
     // Send upload request
     let res = upload_backup(
         &base_url,
-        &backup_id,
+        backup_id,
         b"tiu sekurkopio estas tre sekura!".to_vec(),
     );
     assert_eq!(res.status().as_u16(), 204);
