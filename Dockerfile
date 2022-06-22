@@ -4,7 +4,7 @@ COPY . /opt/sekursranko/
 RUN cd /opt/sekursranko \
  && cargo build --release --target x86_64-unknown-linux-musl
 
-FROM alpine:3.15
+FROM alpine:3.16
 RUN apk update && apk add dumb-init
 RUN mkdir /sekursranko/ \
  && addgroup -g 1337 -S sekursranko \
