@@ -23,3 +23,7 @@ Commit & tag:
 Publish:
 
     $ git push && git push --tags
+
+Push to release branch:
+
+    $ git push origin master:release

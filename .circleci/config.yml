@@ -1,4 +1,4 @@
-version: 2
+version: 2.1
 jobs:
 
   test:
@@ -77,7 +77,19 @@ jobs:
       - setup_remote_docker
       - run: docker build . --no-cache
 
-  docker-publish:
+  docker-publish-master:
+    docker:
+      - image: docker:stable
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run: |
+          export IMAGE=dbrgn/sekursranko
+          docker build . --no-cache -t ${IMAGE}:${CIRCLE_BRANCH} \
+          && docker login -u $DOCKER_LOGIN -p $DOCKER_ACCESS_TOKEN \
+          && docker push ${IMAGE}
+
+  docker-publish-release:
     docker:
       - image: docker:stable
     steps:
@@ -86,21 +98,19 @@ jobs:
       - run: |
           export VERSION=$(grep "^version =" Cargo.toml | sed 's/.*"\([^"]*\)".*/\1/')
           export IMAGE=dbrgn/sekursranko
-          docker build . --no-cache -t ${IMAGE}:${CIRCLE_BRANCH} -t ${IMAGE}:${VERSION} \
+          docker build . --no-cache -t ${IMAGE}:${VERSION} \
           && docker login -u $DOCKER_LOGIN -p $DOCKER_ACCESS_TOKEN \
           && docker push ${IMAGE}
 
 workflows:
-  version: 2
-
-  # Build on push
-  on_push:
+  # Build master on push and on scheduled trigger
+  latest:
     jobs:
       - test
       - clippy
       - fmt
       - audit
-      - docker-publish:
+      - docker-publish-master:
           context: Docker Hub dbrgn
           requires:
             - test
@@ -112,24 +122,12 @@ workflows:
               only:
                 - master
 
-  # Build master branch every week on Monday at 04:00 am
-  weekly:
-    triggers:
-      - schedule:
-          cron: "0 4 * * 1"
-          filters:
-            branches:
-              only:
-                - master
+  # Rebuild release images
+  rebuild-release:
+    when:
+      and:
+        - equal: [ scheduled_pipeline, << pipeline.trigger_source >> ]
+        - equal: [ "Weekly Run Release", << pipeline.schedule.name >> ]
     jobs:
-      - test
-      - clippy
-      - fmt
-      - audit
-      - docker-publish:
+      - docker-publish-release:
           context: Docker Hub dbrgn
-          requires:
-            - test
-            - clippy
-            - fmt
-            - audit

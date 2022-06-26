@@ -35,21 +35,27 @@ component (e.g. Nginx):
 - [ ] TLS termination
 
 
-## Running
+## Docker
 
-You can either build Sekurŝranko yourself, or use the [provided Docker
-image](https://hub.docker.com/r/dbrgn/sekursranko):
+There is a [Docker image](https://hub.docker.com/r/dbrgn/sekursranko) for this
+project:
 
     docker run \
         -v /sekursranko:/tmp/sekursranko \
         -p 3000:3000 \
-        dbrgn/sekursranko:master
+        docker.io/dbrgn/sekursranko:master
 
-The image should be re-built on every push, as well as every week.
+Config variables can be passed to the Docker image as uppercase env vars, for
+example:
+
+    docker run -e MAX_BACKUP_BYTES=12345 (...)
+
+The image for the `master` branch is re-built on every push. The image for the
+latest release and the `master` branch is re-built every week.
 
 Note: The UID/GID of the user within the Docker image is fixed to 1337.
 
-Note that I do not offer any guarantees for this published image. It's purely
+Note: I do not offer any guarantees for this published image. It's purely
 provided for convenience. For critical setups, build the image yourself.
 
 
@@ -93,15 +99,12 @@ Configure logging using the `RUST_LOG` env var:
     RUST_LOG=sekursranko=debug ./sekursranko -c config.toml
 
 
-## Deployment
+## Deployment Notes
 
 Sekurŝranko is meant to be run behind a reverse proxy (e.g. Nginx) that does
 TLS termination. That's why it currently doesn't support TLS directly.
 
 Note that you cannot backup to a server without TLS from the Threema app.
-
-In case you want to run Sekurŝranko in a Docker container: A Dockerfile is
-provided in the source repository.
 
 
 ## Name
