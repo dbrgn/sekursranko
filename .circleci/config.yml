@@ -121,6 +121,17 @@ workflows:
             branches:
               only:
                 - master
+      - docker-publish-release:
+          context: Docker Hub dbrgn
+          requires:
+            - test
+            - clippy
+            - fmt
+            - audit
+          filters:
+            branches:
+              only:
+                - release
 
   # Rebuild release images
   rebuild-release:
