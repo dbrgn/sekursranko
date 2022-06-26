@@ -1,12 +1,13 @@
 [package]
 name = "sekursranko"
+description = "An efficient and memory-safe Threema Safe server implementation written in Rust"
 version = "0.3.3"
 authors = ["Danilo Bargen <mail@dbrgn.ch>"]
 edition = "2018"
 
 [dependencies]
 anyhow = "1"
-clap = "2"
+clap = { version = "3", features = ["std", "derive"], default-features = false }
 env_logger = "0.9"
 futures = "0.3"
 hyper = { version = "0.14", features = ["http1", "server", "runtime", "stream"] }
