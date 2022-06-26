@@ -103,8 +103,11 @@ jobs:
           && docker push ${IMAGE}
 
 workflows:
-  # Build master on push and on scheduled trigger
-  latest:
+  # Build and test on push
+  on_push:
+    when:
+      and:
+        - equal: [ webhook, << pipeline.trigger_source >> ]
     jobs:
       - test
       - clippy
@@ -132,6 +135,16 @@ workflows:
             branches:
               only:
                 - release
+
+  # Rebuild master images
+  rebuild-master:
+    when:
+      and:
+        - equal: [ scheduled_pipeline, << pipeline.trigger_source >> ]
+        - equal: [ "Weekly Run Master", << pipeline.schedule.name >> ]
+    jobs:
+      - docker-publish-master:
+          context: Docker Hub dbrgn
 
   # Rebuild release images
   rebuild-release:
