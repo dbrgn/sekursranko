@@ -12,6 +12,11 @@ Possible log types:
 - `[security]` to invite users to upgrade in case of vulnerabilities.
 
 
+### v0.4.0 (2022-06-26)
+
+- [added] Docker image is now configurable through env variables (see README
+  for details)
+
 ### v0.3.4 (2022-06-26)
 
 - [changed] Updated dependencies
