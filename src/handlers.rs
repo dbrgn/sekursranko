@@ -63,7 +63,7 @@ pub async fn handler(
     config: &ServerConfig,
 ) -> Result<Response<Body>, hyper::Error> {
     // Verify headers
-    if !config.allow_browser {
+    if !config.allow_browser.unwrap_or(false) {
         match req
             .headers()
             .get(header::USER_AGENT)
@@ -136,7 +136,7 @@ pub async fn handler(
         response_404_not_found()
     };
 
-    if config.allow_browser {
+    if config.allow_browser.unwrap_or(false) {
         let headers = response.headers_mut();
         headers.insert(
             header::ACCESS_CONTROL_ALLOW_ORIGIN,
