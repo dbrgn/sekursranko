@@ -49,7 +49,7 @@ impl TestServer {
             retention_days: 180,
             backup_dir: backup_dir.path().to_path_buf(),
             listen_on: "-integrationtest-".to_string(),
-            allow_browser: false,
+            allow_browser: None,
         };
 
         // Run server

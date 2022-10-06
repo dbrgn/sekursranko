@@ -21,7 +21,7 @@ pub struct ServerConfig {
     ///
     /// This will disable the user-agent check and set a CORS header on the
     /// response.
-    pub allow_browser: bool,
+    pub allow_browser: Option<bool>,
 }
 
 impl ServerConfig {
@@ -50,7 +50,11 @@ impl fmt::Display for ServerConfig {
         writeln!(f, "- Retention days: {}", self.retention_days)?;
         writeln!(f, "- Backup directory: {:?}", self.backup_dir)?;
         writeln!(f, "- Listening address: {}", self.listen_on)?;
-        writeln!(f, "- Allow browser access: {}", self.allow_browser)?;
+        writeln!(
+            f,
+            "- Allow browser access: {}",
+            self.allow_browser.unwrap_or(false)
+        )?;
         Ok(())
     }
 }
@@ -123,7 +127,7 @@ mod tests {
                 retention_days: 100,
                 backup_dir: PathBuf::from("backups"),
                 listen_on: "127.0.0.1:3000".to_string(),
-                allow_browser: true,
+                allow_browser: Some(true),
             }
         );
     }
