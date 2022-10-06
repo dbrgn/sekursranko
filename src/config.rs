@@ -17,6 +17,11 @@ pub struct ServerConfig {
     pub backup_dir: PathBuf,
     /// The listening address for the server (e.g. "127.0.0.1:3000")
     pub listen_on: String,
+    /// Whether to allow access from a web browser
+    ///
+    /// This will disable the user-agent check and set a CORS header on the
+    /// response.
+    pub allow_browser: bool,
 }
 
 impl ServerConfig {
@@ -45,6 +50,7 @@ impl fmt::Display for ServerConfig {
         writeln!(f, "- Retention days: {}", self.retention_days)?;
         writeln!(f, "- Backup directory: {:?}", self.backup_dir)?;
         writeln!(f, "- Listening address: {}", self.listen_on)?;
+        writeln!(f, "- Allow browser access: {}", self.allow_browser)?;
         Ok(())
     }
 }
@@ -108,6 +114,7 @@ mod tests {
         file.write_all(b"retention_days = 100\n").unwrap();
         file.write_all(b"backup_dir = \"backups\"\n").unwrap();
         file.write_all(b"listen_on = \"127.0.0.1:3000\"\n").unwrap();
+        file.write_all(b"allow_browser = true\n").unwrap();
         let res = ServerConfig::from_file(tempfile.path());
         assert_eq!(
             res.unwrap(),
@@ -116,6 +123,7 @@ mod tests {
                 retention_days: 100,
                 backup_dir: PathBuf::from("backups"),
                 listen_on: "127.0.0.1:3000".to_string(),
+                allow_browser: true,
             }
         );
     }

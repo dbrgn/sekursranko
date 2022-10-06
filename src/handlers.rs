@@ -63,22 +63,24 @@ pub async fn handler(
     config: &ServerConfig,
 ) -> Result<Response<Body>, hyper::Error> {
     // Verify headers
-    match req
-        .headers()
-        .get(header::USER_AGENT)
-        .and_then(|v| v.to_str().ok())
-    {
-        Some(uagent) if uagent.contains("Threema") => {}
-        _ => {
-            warn!("Received request without valid user agent");
-            return Ok(Response::builder()
-                .status(StatusCode::BAD_REQUEST)
-                .body(Body::empty())
-                .expect("Could not create response"));
+    if !config.allow_browser {
+        match req
+            .headers()
+            .get(header::USER_AGENT)
+            .and_then(|v| v.to_str().ok())
+        {
+            Some(uagent) if uagent.contains("Threema") => {}
+            _ => {
+                warn!("Received request without valid user agent");
+                return Ok(Response::builder()
+                    .status(StatusCode::BAD_REQUEST)
+                    .body(Body::empty())
+                    .expect("Could not create response"));
+            }
         }
     }
 
-    let response = if let Ok(route_match) = router.recognize(req.uri().path()) {
+    let mut response = if let Ok(route_match) = router.recognize(req.uri().path()) {
         match route_match.handler() {
             Route::Index => {
                 if req.method() == Method::GET {
@@ -133,6 +135,15 @@ pub async fn handler(
     } else {
         response_404_not_found()
     };
+
+    if config.allow_browser {
+        let headers = response.headers_mut();
+        headers.insert(
+            header::ACCESS_CONTROL_ALLOW_ORIGIN,
+            header::HeaderValue::from_static("*"),
+        );
+    }
+
     Ok(response)
 }
 
