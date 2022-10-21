@@ -191,6 +191,22 @@ fn backup_download_not_found() {
 }
 
 #[test]
+fn backup_download_not_found_head() {
+    let TestServer { base_url, .. } = TestServer::new();
+    let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+    let res = Client::new()
+        .head(&format!("{}/backups/{}", base_url, backup_id))
+        .header(header::USER_AGENT, "Threema")
+        .header(header::ACCEPT, "application/octet-stream")
+        .send()
+        .unwrap();
+    assert_eq!(res.status().as_u16(), 404);
+    let text = res.text().unwrap();
+    println!("{}", text);
+    assert_eq!(text, "");
+}
+
+#[test]
 fn backup_download_ok() {
     let TestServer {
         base_url,
@@ -210,6 +226,28 @@ fn backup_download_ok() {
     let text = res.text().unwrap();
     println!("{}", text);
     assert_eq!(text, "tre sekura");
+}
+
+#[test]
+fn backup_download_present_head() {
+    let TestServer {
+        base_url,
+        backup_dir,
+        ..
+    } = TestServer::new();
+    let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+    let mut file = File::create(backup_dir.path().join(backup_id)).unwrap();
+    file.write_all(b"tre sekura").unwrap();
+    let res = Client::new()
+        .head(&format!("{}/backups/{}", base_url, backup_id))
+        .header(header::USER_AGENT, "Threema")
+        .header(header::ACCEPT, "application/octet-stream")
+        .send()
+        .unwrap();
+    assert_eq!(res.status().as_u16(), 200);
+    let text = res.text().unwrap();
+    println!("{}", text);
+    assert_eq!(text, "");
 }
 
 #[test]

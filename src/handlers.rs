@@ -97,7 +97,7 @@ pub async fn handler(
                 }
             }
             Route::Backup => match *req.method() {
-                Method::GET => {
+                Method::GET | Method::HEAD => {
                     handle_get_backup(
                         &req,
                         config,
@@ -196,18 +196,25 @@ async fn handle_get_backup(
         return response_404_not_found();
     }
 
+    let is_head_request = req.method() == Method::HEAD;
+
     let backup_path = config.backup_dir.join(backup_id);
     if backup_path.exists() && backup_path.is_file() {
-        let bytes = match fs::read(backup_path).await {
-            Ok(bytes) => bytes,
-            Err(e) => {
-                error!("Could not read file: {}", e);
-                return response_500_internal_server_error();
-            }
+        let body: Body = if is_head_request {
+            Body::empty()
+        } else {
+            let bytes = match fs::read(backup_path).await {
+                Ok(bytes) => bytes,
+                Err(e) => {
+                    error!("Could not read file: {}", e);
+                    return response_500_internal_server_error();
+                }
+            };
+            bytes.into()
         };
         Response::builder()
             .status(StatusCode::OK)
-            .body(bytes.into())
+            .body(body)
             .expect("Could not create response")
     } else {
         response_404_not_found()
