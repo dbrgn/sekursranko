@@ -12,6 +12,11 @@ Possible log types:
 - `[security]` to invite users to upgrade in case of vulnerabilities.
 
 
+### v0.5.0 (2022-10-21)
+
+- [added] Support for HEAD requests
+- [changed] Updated dependencies
+
 ### v0.4.1 (2022-10-06)
 
 - [added] Add new `allow_browser` config option
