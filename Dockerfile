@@ -6,7 +6,7 @@ RUN cd /opt/sekursranko \
  && cargo build --release --target x86_64-unknown-linux-musl
 
 # Set up runtime container
-FROM alpine:3.16
+FROM alpine:3.17.0
 RUN apk update && apk add dumb-init bash moreutils
 
 # Create user
