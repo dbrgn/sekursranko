@@ -12,6 +12,10 @@ Possible log types:
 - `[security]` to invite users to upgrade in case of vulnerabilities.
 
 
+### v0.5.1 (2022-11-24)
+
+- [changed] Dockerfile: Bump to Alpine 3.17
+
 ### v0.5.0 (2022-10-21)
 
 - [added] Support for HEAD requests
