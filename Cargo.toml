@@ -7,7 +7,7 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1"
-clap = { version = "3", features = ["std", "derive"], default-features = false }
+clap = { version = "4", features = ["std", "help", "usage", "error-context", "derive", "cargo"], default-features = false }
 env_logger = "0.10"
 futures = "0.3"
 hyper = { version = "0.14", features = ["http1", "server", "runtime", "stream"] }
