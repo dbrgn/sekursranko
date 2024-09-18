@@ -7,10 +7,10 @@ use log::error;
 use sekursranko::{MakeBackupService, ServerConfig};
 
 #[derive(Parser, Debug)]
-#[clap(author, version, about)]
-struct Args {
+#[command(author, version, about)]
+struct Cli {
     /// Path to the config file
-    #[clap(short, long)]
+    #[arg(short, long)]
     config: PathBuf,
 }
 
@@ -19,10 +19,10 @@ async fn main() {
     env_logger::init();
 
     // Parse CLI args
-    let args = Args::parse();
+    let cli = Cli::parse();
 
     // Load config
-    let config: ServerConfig = ServerConfig::from_file(&args.config).unwrap_or_else(|e| {
+    let config: ServerConfig = ServerConfig::from_file(&cli.config).unwrap_or_else(|e| {
         eprintln!("Could not load config file: {}", e);
         ::std::process::exit(1);
     });
