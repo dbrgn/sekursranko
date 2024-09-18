@@ -12,6 +12,11 @@ Possible log types:
 - `[security]` to invite users to upgrade in case of vulnerabilities.
 
 
+### v0.5.4 (2024-09-18)
+
+- [changed] Updated dependencies
+- [changed] Dockerfile: Bump to Alpine 3.20
+
 ### v0.5.3 (2023-04-14)
 
 - [changed] Updated dependencies
