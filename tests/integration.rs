@@ -148,7 +148,7 @@ fn index_ok() {
 fn config_require_json() {
     let TestServer { base_url, .. } = TestServer::new();
     let res = Client::new()
-        .get(&format!("{}/config", base_url))
+        .get(format!("{}/config", base_url))
         .header(header::USER_AGENT, "Threema")
         .send()
         .unwrap();
@@ -163,7 +163,7 @@ fn backup_download_require_octet_stream() {
     let TestServer { base_url, .. } = TestServer::new();
     let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
     let res = Client::new()
-        .get(&format!("{}/backups/{}", base_url, backup_id))
+        .get(format!("{}/backups/{}", base_url, backup_id))
         .header(header::USER_AGENT, "Threema")
         .header(header::ACCEPT, "application/json")
         .send()
@@ -179,7 +179,7 @@ fn backup_download_not_found() {
     let TestServer { base_url, .. } = TestServer::new();
     let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
     let res = Client::new()
-        .get(&format!("{}/backups/{}", base_url, backup_id))
+        .get(format!("{}/backups/{}", base_url, backup_id))
         .header(header::USER_AGENT, "Threema")
         .header(header::ACCEPT, "application/octet-stream")
         .send()
@@ -195,7 +195,7 @@ fn backup_download_not_found_head() {
     let TestServer { base_url, .. } = TestServer::new();
     let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
     let res = Client::new()
-        .head(&format!("{}/backups/{}", base_url, backup_id))
+        .head(format!("{}/backups/{}", base_url, backup_id))
         .header(header::USER_AGENT, "Threema")
         .header(header::ACCEPT, "application/octet-stream")
         .send()
@@ -217,7 +217,7 @@ fn backup_download_ok() {
     let mut file = File::create(backup_dir.path().join(backup_id)).unwrap();
     file.write_all(b"tre sekura").unwrap();
     let res = Client::new()
-        .get(&format!("{}/backups/{}", base_url, backup_id))
+        .get(format!("{}/backups/{}", base_url, backup_id))
         .header(header::USER_AGENT, "Threema")
         .header(header::ACCEPT, "application/octet-stream")
         .send()
@@ -239,7 +239,7 @@ fn backup_download_present_head() {
     let mut file = File::create(backup_dir.path().join(backup_id)).unwrap();
     file.write_all(b"tre sekura").unwrap();
     let res = Client::new()
-        .head(&format!("{}/backups/{}", base_url, backup_id))
+        .head(format!("{}/backups/{}", base_url, backup_id))
         .header(header::USER_AGENT, "Threema")
         .header(header::ACCEPT, "application/octet-stream")
         .send()
@@ -255,7 +255,7 @@ fn backup_upload_require_octet_stream() {
     let TestServer { base_url, .. } = TestServer::new();
     let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
     let res = Client::new()
-        .put(&format!("{}/backups/{}", base_url, backup_id))
+        .put(format!("{}/backups/{}", base_url, backup_id))
         .header(header::USER_AGENT, "Threema")
         .header(header::CONTENT_TYPE, "application/json")
         .send()
@@ -271,7 +271,7 @@ fn backup_upload_invalid_backup_id() {
     let TestServer { base_url, .. } = TestServer::new();
     let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789gggggg";
     let res = Client::new()
-        .put(&format!("{}/backups/{}", base_url, backup_id))
+        .put(format!("{}/backups/{}", base_url, backup_id))
         .header(header::USER_AGENT, "Threema")
         .header(header::CONTENT_TYPE, "application/octet-stream")
         .send()
@@ -291,7 +291,7 @@ fn backup_upload_payload_not_too_large() {
     } = TestServer::new();
     let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
     let res = Client::new()
-        .put(&format!("{}/backups/{}", base_url, backup_id))
+        .put(format!("{}/backups/{}", base_url, backup_id))
         .header(header::USER_AGENT, "Threema")
         .header(header::CONTENT_TYPE, "application/octet-stream")
         .header(
@@ -315,7 +315,7 @@ fn backup_upload_payload_too_large() {
     } = TestServer::new();
     let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
     let res = Client::new()
-        .put(&format!("{}/backups/{}", base_url, backup_id))
+        .put(format!("{}/backups/{}", base_url, backup_id))
         .header(header::USER_AGENT, "Threema")
         .header(header::CONTENT_TYPE, "application/octet-stream")
         .header(
@@ -332,7 +332,7 @@ fn backup_upload_payload_too_large() {
 
 fn upload_backup(base_url: &str, backup_id: &str, body: Vec<u8>) -> Response {
     Client::new()
-        .put(&format!("{}/backups/{}", base_url, backup_id))
+        .put(format!("{}/backups/{}", base_url, backup_id))
         .header(header::USER_AGENT, "Threema")
         .header(header::CONTENT_TYPE, "application/octet-stream")
         .body(body)
@@ -425,7 +425,7 @@ fn backup_delete_invalid_backup_id() {
     let TestServer { base_url, .. } = TestServer::new();
     let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789gggggg";
     let res = Client::new()
-        .delete(&format!("{}/backups/{}", base_url, backup_id))
+        .delete(format!("{}/backups/{}", base_url, backup_id))
         .header(header::USER_AGENT, "Threema")
         .send()
         .unwrap();
@@ -440,7 +440,7 @@ fn backup_delete_not_found() {
     let TestServer { base_url, .. } = TestServer::new();
     let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789ffffff";
     let res = Client::new()
-        .delete(&format!("{}/backups/{}", base_url, backup_id))
+        .delete(format!("{}/backups/{}", base_url, backup_id))
         .header(header::USER_AGENT, "Threema")
         .send()
         .unwrap();
@@ -472,7 +472,7 @@ fn backup_delete_success() {
 
     // Send delete request
     let res = Client::new()
-        .delete(&format!("{}/backups/{}", base_url, backup_id))
+        .delete(format!("{}/backups/{}", base_url, backup_id))
         .header(header::USER_AGENT, "Threema")
         .send()
         .unwrap();

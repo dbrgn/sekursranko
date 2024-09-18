@@ -176,7 +176,7 @@ fn backup_id_valid(backup_id: &str) -> bool {
     backup_id.len() == 64
         && backup_id
             .chars()
-            .all(|c| c.is_ascii_hexdigit() && (c.is_digit(10) || c.is_lowercase()))
+            .all(|c| c.is_ascii_hexdigit() && (c.is_ascii_digit() || c.is_lowercase()))
 }
 
 async fn handle_get_backup(
