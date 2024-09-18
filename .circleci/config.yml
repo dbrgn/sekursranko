@@ -3,7 +3,7 @@ jobs:
 
   test:
     docker:
-      - image: rust:1.61
+      - image: rust:1.81
     steps:
       - checkout
       - restore_cache:
@@ -32,7 +32,7 @@ jobs:
 
   clippy:
     docker:
-      - image: rust:1.61
+      - image: rust:1.81
     steps:
       - checkout
       - restore_cache:
@@ -47,7 +47,7 @@ jobs:
 
   fmt:
     docker:
-      - image: rust:1.61
+      - image: rust:1.81
     steps:
       - checkout
       - restore_cache:
