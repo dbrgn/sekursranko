@@ -12,6 +12,10 @@ Possible log types:
 - `[security]` to invite users to upgrade in case of vulnerabilities.
 
 
+### v0.5.5 (2025-03-27)
+
+- [changed] Updated dependencies
+
 ### v0.5.4 (2024-09-18)
 
 - [changed] Updated dependencies
