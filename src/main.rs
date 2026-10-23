@@ -33,7 +33,7 @@ async fn main() {
     println!(
         "Starting {} server with the following configuration:\n\n{}",
         sekursranko::NAME,
-        &config
+        config
     );
 
     // Create server

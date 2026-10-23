@@ -397,7 +397,7 @@ async fn handle_delete_backup(config: &ServerConfig, backup_id: &str) -> Respons
             .body(Body::empty())
             .expect("Could not create response"),
         Err(e) => {
-            error!("Could not delete backup at {:?}: {}", &backup_path, e);
+            error!("Could not delete backup at {:?}: {}", backup_path, e);
             response_500_internal_server_error()
         }
     }
