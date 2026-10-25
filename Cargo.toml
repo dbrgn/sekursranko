@@ -13,7 +13,7 @@ http-body-util = "0.1"
 hyper = { version = "1", features = ["http1", "server"] }
 hyper-util = { version = "0.1", features = ["tokio"] }
 log = "0.4"
-rand = "0.8"
+rand = "0.10"
 route-recognizer = "0.3"
 serde = "1.0"
 serde_derive = "*"

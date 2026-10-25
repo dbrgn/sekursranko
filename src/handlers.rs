@@ -7,7 +7,7 @@ use hyper::{
     header, Method, Request, Response, StatusCode,
 };
 use log::{debug, error, info, trace, warn};
-use rand::Rng;
+use rand::RngExt;
 use tokio::{fs, io::AsyncWriteExt};
 
 use crate::{
@@ -325,9 +325,9 @@ async fn write_backup(
     // The incoming stream will be written to a temporary file. This is done to prevent
     // incomplete backups from being persisted.
     let random_ext: String = {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         std::iter::repeat(())
-            .map(|_| rng.sample(rand::distributions::Alphanumeric))
+            .map(|_| rng.sample(rand::distr::Alphanumeric))
             .map(char::from)
             .take(10)
             .collect()
