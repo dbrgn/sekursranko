@@ -2,10 +2,10 @@ use std::{convert::Infallible, future::Future, pin::Pin, sync::Arc, time::Durati
 
 use http_body_util::Full;
 use hyper::{
+    Request, Response,
     body::{Bytes, Incoming},
     server::conn::http1,
     service::Service,
-    Request, Response,
 };
 use hyper_util::rt::{TokioIo, TokioTimer};
 use log::{debug, error, trace};
@@ -14,7 +14,7 @@ use tokio::net::TcpListener;
 use crate::{
     config::ServerConfig,
     handlers::handler,
-    routing::{make_router, Router},
+    routing::{Router, make_router},
 };
 
 /// A `BackupService` wraps a configuration and a router.

@@ -3,7 +3,7 @@ name = "sekursranko"
 description = "An efficient and memory-safe Threema Safe server implementation written in Rust"
 version = "0.5.5"
 authors = ["Danilo Bargen <mail@dbrgn.ch>"]
-edition = "2018"
+edition = "2024"
 
 [dependencies]
 anyhow = "1"

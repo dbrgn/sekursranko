@@ -1,10 +1,11 @@
 use std::{convert::Infallible, io::Error as IoError, os::unix::fs::PermissionsExt, path::Path};
 
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 use http_body_util::{BodyExt, Full};
 use hyper::{
+    Method, Request, Response, StatusCode,
     body::{Bytes, Incoming},
-    header, Method, Request, Response, StatusCode,
+    header,
 };
 use log::{debug, error, info, trace, warn};
 use rand::RngExt;

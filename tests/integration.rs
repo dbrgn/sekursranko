@@ -6,8 +6,9 @@ use std::sync::Once;
 use std::thread;
 
 use reqwest::{
+    Method,
     blocking::{Client, Response},
-    header, Method,
+    header,
 };
 use tempfile::{self, TempDir};
 
@@ -27,13 +28,11 @@ impl TestServer {
     fn new() -> Self {
         // Initialize logger
         LOGGER_INIT.call_once(|| {
-            if env::var("RUST_LOG")
-                .unwrap_or_else(|_| "".into())
-                .is_empty()
-            {
-                env::set_var("RUST_LOG", "sekursranko=error");
-            }
-            env_logger::init();
+            let filter = env::var("RUST_LOG")
+                .ok()
+                .filter(|v| !v.is_empty())
+                .unwrap_or_else(|| "sekursranko=error".into());
+            env_logger::Builder::new().parse_filters(&filter).init();
         });
 
         // Create backup tmpdir
