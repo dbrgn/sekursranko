@@ -8,7 +8,7 @@ edition = "2018"
 [dependencies]
 anyhow = "1"
 clap = { version = "4", features = ["std", "help", "usage", "error-context", "derive", "cargo"], default-features = false }
-env_logger = "0.10"
+env_logger = "0.11"
 http-body-util = "0.1"
 hyper = { version = "1", features = ["http1", "server"] }
 hyper-util = { version = "0.1", features = ["tokio"] }
