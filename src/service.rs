@@ -11,24 +11,18 @@ use hyper_util::rt::{TokioIo, TokioTimer};
 use log::{debug, error, trace};
 use tokio::net::TcpListener;
 
-use crate::{
-    config::ServerConfig,
-    handlers::handler,
-    routing::{Router, make_router},
-};
+use crate::{config::ServerConfig, handlers::handler};
 
-/// A `BackupService` wraps a configuration and a router.
+/// A `BackupService` wraps a configuration.
 #[derive(Debug, Clone)]
 pub struct BackupService {
     config: Arc<ServerConfig>,
-    router: Arc<Router>,
 }
 
 impl BackupService {
     pub fn new(config: ServerConfig) -> Self {
         Self {
             config: Arc::new(config),
-            router: Arc::new(make_router()),
         }
     }
 }
@@ -43,12 +37,11 @@ impl Service<Request<Incoming>> for BackupService {
     fn call(&self, req: Request<Incoming>) -> Self::Future {
         trace!("BackupService::call");
 
-        // Copy Arc references that will be moved into the future
+        // Copy Arc reference that will be moved into the future
         let config = self.config.clone();
-        let router = self.router.clone();
 
         // Call handler
-        Box::pin(async move { handler(req, &router, &config).await })
+        Box::pin(async move { handler(req, &config).await })
     }
 }
 

@@ -18,6 +18,7 @@ Possible log types:
 - [changed] Require at least Rust 1.85 (Rust 2024 edition)
 - [changed] Close connections that don't send request headers within 30 seconds
 - [changed] Library API: `MakeBackupService` was replaced by a `serve` function
+- [changed] Replace `route-recognizer` dependency with custom implementation (#57)
 - [changed] Dockerfile: Bump to Alpine 3.24
 
 ### v0.5.5 (2025-03-27)
