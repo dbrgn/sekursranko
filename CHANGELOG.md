@@ -11,7 +11,6 @@ Possible log types:
 - `[fixed]` for any bug fixes.
 - `[security]` to invite users to upgrade in case of vulnerabilities.
 
-
 ### Unreleased
 
 - [changed] Updated dependencies, including the switch to Hyper 1.x
@@ -20,6 +19,7 @@ Possible log types:
 - [changed] Library API: `MakeBackupService` was replaced by a `serve` function
 - [changed] Replace `route-recognizer` dependency with custom implementation (#57)
 - [changed] Dockerfile: Bump to Alpine 3.24
+- [fixed] Remove temporary files of failed or aborted uploads
 
 ### v0.5.5 (2025-03-27)
 

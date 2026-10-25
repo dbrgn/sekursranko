@@ -1,9 +1,13 @@
-use std::env;
-use std::fs::File;
-use std::io::{Read, Write};
-use std::os::unix::fs::PermissionsExt;
-use std::sync::Once;
-use std::thread;
+use std::{
+    env,
+    fs::File,
+    io::{Read, Write},
+    net::TcpStream,
+    os::unix::fs::PermissionsExt,
+    sync::Once,
+    thread,
+    time::{Duration, Instant},
+};
 
 use reqwest::{
     Method,
@@ -414,6 +418,73 @@ fn backup_upload_success_updated() {
     let mut buffer = String::new();
     backup_file.read_to_string(&mut buffer).unwrap();
     assert_eq!(buffer, "tiu sekurkopio estas tre sekura!");
+}
+
+/// Return the names of all entries in the backup directory.
+fn backup_dir_entries(backup_dir: &TempDir) -> Vec<String> {
+    let mut entries: Vec<String> = std::fs::read_dir(backup_dir.path())
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    entries.sort();
+    entries
+}
+
+/// A successful upload must not leave any temporary files behind.
+#[test]
+fn backup_upload_success_no_temporary_files() {
+    let TestServer {
+        base_url,
+        backup_dir,
+        ..
+    } = TestServer::new();
+    let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+    let res = upload_backup(&base_url, backup_id, b"one".to_vec());
+    assert_eq!(res.status().as_u16(), 201);
+    let res = upload_backup(&base_url, backup_id, b"two".to_vec());
+    assert_eq!(res.status().as_u16(), 204);
+    assert_eq!(backup_dir_entries(&backup_dir), vec![backup_id.to_string()]);
+}
+
+/// An upload that is aborted by the client must not leave any files behind.
+#[test]
+fn backup_upload_aborted_no_files() {
+    let TestServer {
+        base_url,
+        backup_dir,
+        ..
+    } = TestServer::new();
+    let backup_id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
+    // Send only part of the declared body, then close the connection
+    let mut stream = TcpStream::connect(base_url.trim_start_matches("http://")).unwrap();
+    write!(
+        stream,
+        "PUT /backups/{} HTTP/1.1\r\n\
+         Host: localhost\r\n\
+         User-Agent: Threema\r\n\
+         Content-Type: application/octet-stream\r\n\
+         Content-Length: 100\r\n\
+         \r\n\
+         incomplete",
+        backup_id
+    )
+    .unwrap();
+    stream.flush().unwrap();
+
+    // Wait until the server has started writing the upload
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while backup_dir_entries(&backup_dir).is_empty() && Instant::now() < deadline {
+        thread::sleep(Duration::from_millis(10));
+    }
+    drop(stream);
+
+    // Wait until the server has cleaned up
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while !backup_dir_entries(&backup_dir).is_empty() && Instant::now() < deadline {
+        thread::sleep(Duration::from_millis(10));
+    }
+    assert_eq!(backup_dir_entries(&backup_dir), Vec::<String>::new());
 }
 
 #[test]
