@@ -1,6 +1,6 @@
-use std::{convert::Infallible, io::Error as IoError, os::unix::fs::PermissionsExt, path::Path};
+use std::{convert::Infallible, path::Path};
 
-use anyhow::{Context, bail};
+use anyhow::Context;
 use http_body_util::{BodyExt, Full};
 use hyper::{
     Method, Request, Response, StatusCode,
@@ -8,7 +8,6 @@ use hyper::{
     header,
 };
 use log::{debug, error, info, trace, warn};
-use rand::RngExt;
 use tokio::{fs, io::AsyncWriteExt};
 
 use crate::{
@@ -198,15 +197,6 @@ async fn handle_get_backup(
     }
 }
 
-// Create a file with permissions set to 0600.
-async fn create_file(path: &Path) -> Result<fs::File, IoError> {
-    let file = fs::File::create(path).await?;
-    let mut perms = file.metadata().await?.permissions();
-    perms.set_mode(0o600);
-    file.set_permissions(perms).await?;
-    Ok(file)
-}
-
 async fn handle_put_backup(
     req: Request<Incoming>,
     config: &ServerConfig,
@@ -296,49 +286,49 @@ async fn write_backup(
     backup_id: &str,
     backup_path: &Path,
 ) -> anyhow::Result<bool> {
-    // The incoming stream will be written to a temporary file. This is done to prevent
-    // incomplete backups from being persisted.
-    let random_ext: String = {
-        let mut rng = rand::rng();
-        std::iter::repeat(())
-            .map(|_| rng.sample(rand::distr::Alphanumeric))
-            .map(char::from)
-            .take(10)
-            .collect()
-    };
-    let backup_path_dl = backup_path.with_extension(random_ext);
-    trace!("Writing temporary upload to {:?}", backup_path_dl);
-    if backup_path_dl.exists() {
-        bail!(
-            "Random upload path \"{:?}\" already exists!",
-            backup_path_dl
-        );
-    }
-
-    // Create the empty download file to ensure correct permissions before
-    // writing the data
-    let mut backup_file_dl = create_file(&backup_path_dl)
-        .await
+    // The incoming stream will be written to a temporary file in the backup
+    // directory, which is then atomically moved to the final location. This is
+    // done to prevent incomplete backups from being persisted. The temporary
+    // file is created exclusively with 0600 permissions, and it is deleted
+    // when dropped, i.e. also when the upload fails or is aborted by the
+    // client.
+    let backup_dir = backup_path
+        .parent()
+        .context("Backup path has no parent directory")?;
+    let backup_file_tmp = tempfile::Builder::new()
+        .prefix(&format!("{}.", backup_id))
+        .tempfile_in(backup_dir)
         .context("Could not create temporary file")?;
+    trace!("Writing temporary upload to {:?}", backup_file_tmp.path());
 
     // Write data to temporary file
+    let mut file = fs::File::from_std(
+        backup_file_tmp
+            .as_file()
+            .try_clone()
+            .context("Could not clone temporary file handle")?,
+    );
     while let Some(frame_or_error) = body.frame().await {
         let frame = frame_or_error.context("Could not read body chunk")?;
         if let Ok(chunk) = frame.into_data() {
-            backup_file_dl
-                .write_all(&chunk)
+            file.write_all(&chunk)
                 .await
                 .context("Could not write chunk to temporary file")?
         }
     }
+
+    // Wait for all pending writes to complete before moving the file
+    file.flush()
+        .await
+        .context("Could not flush temporary file")?;
     trace!("Wrote temp backup for {}", backup_id);
 
     // Move temporary file to final location
     let updated = backup_path.exists() && backup_path.is_file();
-    fs::rename(&backup_path_dl, &backup_path)
-        .await
+    backup_file_tmp
+        .persist(backup_path)
         .context("Could not move temporary backup to final location")?;
-    trace!("Renamed: {:?} -> {:?}", backup_path_dl, backup_path);
+    trace!("Moved temporary backup to {:?}", backup_path);
 
     Ok(updated)
 }
