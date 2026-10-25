@@ -145,6 +145,15 @@ fn handle_config(req: &Request<Incoming>, config: &ServerConfig) -> Response<Ful
         .expect("Could not create response")
 }
 
+/// Shorten a backup id for logging.
+///
+/// Anyone who knows a backup id can download, overwrite or delete that
+/// backup, so full ids must not end up in log files.
+fn log_id(backup_id: &str) -> String {
+    let prefix: String = backup_id.chars().take(8).collect();
+    format!("{}…", prefix)
+}
+
 /// Return whether this backup id is valid.
 ///
 /// A backup id must be a 64 character lowercase hex string.
@@ -167,7 +176,7 @@ async fn handle_get_backup(
     if !backup_id_valid(backup_id) {
         warn!(
             "Download of backup with invalid id was requested: {}",
-            backup_id
+            log_id(backup_id)
         );
         return response_404_not_found();
     }
@@ -209,7 +218,7 @@ async fn handle_put_backup(
     if !backup_id_valid(backup_id) {
         warn!(
             "Upload of backup with invalid id was requested: {}",
-            backup_id
+            log_id(backup_id)
         );
         return response_400_bad_request("{\"detail\": \"Invalid backup ID\"}");
     }
@@ -218,8 +227,8 @@ async fn handle_put_backup(
     let backup_path = config.backup_dir.join(backup_id);
     if backup_path.exists() && !backup_path.is_file() {
         warn!(
-            "Tried to upload to a backup path that exists but is not a file: {:?}",
-            backup_path
+            "Tried to upload backup {}, but its path exists and is not a file",
+            log_id(backup_id)
         );
         return response_500_internal_server_error();
     }
@@ -260,7 +269,7 @@ async fn handle_put_backup(
             info!(
                 "{} backup {}",
                 if updated { "Updated" } else { "Created" },
-                backup_id
+                log_id(backup_id)
             );
             Response::builder()
                 .status(if updated {
@@ -299,7 +308,7 @@ async fn write_backup(
         .prefix(&format!("{}.", backup_id))
         .tempfile_in(backup_dir)
         .context("Could not create temporary file")?;
-    trace!("Writing temporary upload to {:?}", backup_file_tmp.path());
+    trace!("Writing temporary upload for backup {}", log_id(backup_id));
 
     // Write data to temporary file
     let mut file = fs::File::from_std(
@@ -321,14 +330,17 @@ async fn write_backup(
     file.flush()
         .await
         .context("Could not flush temporary file")?;
-    trace!("Wrote temp backup for {}", backup_id);
+    trace!("Wrote temp backup for {}", log_id(backup_id));
 
     // Move temporary file to final location
     let updated = backup_path.exists() && backup_path.is_file();
     backup_file_tmp
         .persist(backup_path)
         .context("Could not move temporary backup to final location")?;
-    trace!("Moved temporary backup to {:?}", backup_path);
+    trace!(
+        "Moved temporary backup {} to final location",
+        log_id(backup_id)
+    );
 
     Ok(updated)
 }
@@ -338,7 +350,7 @@ async fn handle_delete_backup(config: &ServerConfig, backup_id: &str) -> Respons
     if !backup_id_valid(backup_id) {
         warn!(
             "Deletion of backup with invalid id was requested: {}",
-            backup_id
+            log_id(backup_id)
         );
         return response_400_bad_request("{\"detail\": \"Invalid backup ID\"}");
     }
@@ -348,8 +360,8 @@ async fn handle_delete_backup(config: &ServerConfig, backup_id: &str) -> Respons
     // Ensure backup exists
     if !backup_path.exists() {
         debug!(
-            "Tried to delete a backup path that does not exist: {:?}",
-            backup_path
+            "Tried to delete backup {}, but it does not exist",
+            log_id(backup_id)
         );
         return response_404_not_found();
     }
@@ -357,8 +369,8 @@ async fn handle_delete_backup(config: &ServerConfig, backup_id: &str) -> Respons
     // Ensure backup is a file
     if !backup_path.is_file() {
         warn!(
-            "Tried to delete a backup path that exists but is not a file: {:?}",
-            backup_path
+            "Tried to delete backup {}, but its path exists and is not a file",
+            log_id(backup_id)
         );
         return response_500_internal_server_error();
     }
@@ -370,7 +382,7 @@ async fn handle_delete_backup(config: &ServerConfig, backup_id: &str) -> Respons
             .body(Full::default())
             .expect("Could not create response"),
         Err(e) => {
-            error!("Could not delete backup at {:?}: {}", backup_path, e);
+            error!("Could not delete backup {}: {}", log_id(backup_id), e);
             response_500_internal_server_error()
         }
     }
@@ -419,5 +431,18 @@ mod tests {
         assert!(backup_id_valid(
             "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
         ));
+    }
+
+    #[test]
+    fn test_log_id() {
+        assert_eq!(
+            log_id("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"),
+            "01234567…"
+        );
+        assert_eq!(log_id("abc"), "abc…");
+        assert_eq!(
+            log_id("\u{e4}\u{e4}\u{e4}\u{e4}\u{e4}\u{e4}\u{e4}\u{e4}\u{e4}"),
+            "\u{e4}\u{e4}\u{e4}\u{e4}\u{e4}\u{e4}\u{e4}\u{e4}…"
+        );
     }
 }
