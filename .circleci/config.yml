@@ -3,7 +3,7 @@ jobs:
 
   test:
     docker:
-      - image: rust:1.81
+      - image: rust:1.99.1
     steps:
       - checkout
       - restore_cache:
@@ -32,7 +32,7 @@ jobs:
 
   clippy:
     docker:
-      - image: rust:1.81
+      - image: rust:1.99.1
     steps:
       - checkout
       - restore_cache:
@@ -47,7 +47,7 @@ jobs:
 
   fmt:
     docker:
-      - image: rust:1.81
+      - image: rust:1.99.1
     steps:
       - checkout
       - restore_cache:
@@ -71,7 +71,7 @@ jobs:
 
   docker-build:
     docker:
-      - image: docker:stable
+      - image: docker:29-cli
     steps:
       - checkout
       - setup_remote_docker
@@ -79,28 +79,30 @@ jobs:
 
   docker-publish-master:
     docker:
-      - image: docker:stable
+      - image: docker:29-cli
     steps:
       - checkout
       - setup_remote_docker
       - run: |
           export IMAGE=dbrgn/sekursranko
-          docker build . --no-cache -t ${IMAGE}:${CIRCLE_BRANCH} \
-          && docker login -u $DOCKER_LOGIN -p $DOCKER_ACCESS_TOKEN \
-          && docker push ${IMAGE}
+          export TAG=${CIRCLE_BRANCH}
+          docker build . --no-cache -t ${IMAGE}:${TAG} \
+          && echo "$DOCKER_ACCESS_TOKEN" | docker login -u "$DOCKER_LOGIN" --password-stdin \
+          && docker push ${IMAGE}:${TAG}
 
   docker-publish-release:
     docker:
-      - image: docker:stable
+      - image: docker:29-cli
     steps:
       - checkout
       - setup_remote_docker
       - run: |
           export VERSION=$(grep "^version =" Cargo.toml | sed 's/.*"\([^"]*\)".*/\1/')
           export IMAGE=dbrgn/sekursranko
-          docker build . --no-cache -t ${IMAGE}:${VERSION} \
-          && docker login -u $DOCKER_LOGIN -p $DOCKER_ACCESS_TOKEN \
-          && docker push ${IMAGE}
+          export TAG=${VERSION}
+          docker build . --no-cache -t ${IMAGE}:${TAG} \
+          && echo "$DOCKER_ACCESS_TOKEN" | docker login -u "$DOCKER_LOGIN" --password-stdin \
+          && docker push ${IMAGE}:${TAG}
 
 workflows:
   # Build and test on push

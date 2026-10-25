@@ -3,23 +3,23 @@ name = "sekursranko"
 description = "An efficient and memory-safe Threema Safe server implementation written in Rust"
 version = "0.5.5"
 authors = ["Danilo Bargen <mail@dbrgn.ch>"]
-edition = "2018"
+edition = "2024"
 
 [dependencies]
 anyhow = "1"
 clap = { version = "4", features = ["std", "help", "usage", "error-context", "derive", "cargo"], default-features = false }
-env_logger = "0.10"
-futures = "0.3"
-hyper = { version = "0.14", features = ["http1", "server", "runtime", "stream"] }
+env_logger = "0.11"
+http-body-util = "0.1"
+hyper = { version = "1", features = ["http1", "server"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
 log = "0.4"
-rand = "0.8"
+rand = "0.10"
 route-recognizer = "0.3"
-serde = "1.0"
-serde_derive = "*"
+serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-tokio = { version = "1", features = ["rt-multi-thread", "macros",  "fs", "io-util"] }
-toml = "0.7"
+tokio = { version = "1", features = ["rt-multi-thread", "macros",  "fs", "io-util", "net", "time"] }
+toml = "1"
 
 [dev-dependencies]
-reqwest = { version = "0.11", features = ["blocking"] }
+reqwest = { version = "0.13", default-features = false, features = ["blocking"] }
 tempfile = "3"

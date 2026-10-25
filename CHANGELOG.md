@@ -12,6 +12,14 @@ Possible log types:
 - `[security]` to invite users to upgrade in case of vulnerabilities.
 
 
+### Unreleased
+
+- [changed] Updated dependencies, including the switch to Hyper 1.x
+- [changed] Require at least Rust 1.85 (Rust 2024 edition)
+- [changed] Close connections that don't send request headers within 30 seconds
+- [changed] Library API: `MakeBackupService` was replaced by a `serve` function
+- [changed] Dockerfile: Bump to Alpine 3.24
+
 ### v0.5.5 (2025-03-27)
 
 - [changed] Updated dependencies

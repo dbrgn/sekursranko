@@ -5,14 +5,14 @@ use std::os::unix::fs::PermissionsExt;
 use std::sync::Once;
 use std::thread;
 
-use hyper::Server;
 use reqwest::{
+    Method,
     blocking::{Client, Response},
-    header, Method,
+    header,
 };
 use tempfile::{self, TempDir};
 
-use sekursranko::{MakeBackupService, ServerConfig};
+use sekursranko::ServerConfig;
 
 static LOGGER_INIT: Once = Once::new();
 
@@ -28,13 +28,11 @@ impl TestServer {
     fn new() -> Self {
         // Initialize logger
         LOGGER_INIT.call_once(|| {
-            if env::var("RUST_LOG")
-                .unwrap_or_else(|_| "".into())
-                .is_empty()
-            {
-                env::set_var("RUST_LOG", "sekursranko=error");
-            }
-            env_logger::init();
+            let filter = env::var("RUST_LOG")
+                .ok()
+                .filter(|v| !v.is_empty())
+                .unwrap_or_else(|| "sekursranko=error".into());
+            env_logger::Builder::new().parse_filters(&filter).init();
         });
 
         // Create backup tmpdir
@@ -53,14 +51,15 @@ impl TestServer {
         };
 
         // Run server
-        let addr = ([127, 0, 0, 1], 0).into();
-        let service = MakeBackupService::new(config.clone());
+        let server_config = config.clone();
         let (port_tx, port_rx) = std::sync::mpsc::channel();
         let handle = thread::spawn(move || {
             let rt = tokio::runtime::Runtime::new().unwrap();
             rt.block_on(async move {
-                let server = Server::bind(&addr).serve(service);
-                let port = server.local_addr().port();
+                let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+                    .await
+                    .expect("Could not bind test server");
+                let port = listener.local_addr().unwrap().port();
 
                 // Using port 0 when binding, we can know the final port only
                 // once the server starts. Therefore, we use a channel to send
@@ -68,10 +67,7 @@ impl TestServer {
                 port_tx.send(port).unwrap();
 
                 // Run server until completion
-                if let Err(e) = server.await {
-                    eprintln!("Server error: {}", e);
-                    std::process::exit(1);
-                };
+                sekursranko::serve(listener, server_config).await;
             });
         });
         let port = port_rx.recv().unwrap();
