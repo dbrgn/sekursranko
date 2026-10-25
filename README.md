@@ -41,7 +41,7 @@ There is a [Docker image](https://hub.docker.com/r/dbrgn/sekursranko) for this
 project:
 
     docker run \
-        -v /sekursranko:/tmp/sekursranko \
+        -v /srv/sekursranko:/sekursranko \
         -p 3000:3000 \
         docker.io/dbrgn/sekursranko:master
 
