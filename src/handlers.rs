@@ -13,7 +13,7 @@ use tokio::{fs, io::AsyncWriteExt};
 
 use crate::{
     config::{ServerConfig, ServerConfigPublic},
-    routing::{Route, Router},
+    routing::{Route, recognize},
 };
 
 macro_rules! require_accept_starts_with {
@@ -63,7 +63,6 @@ macro_rules! require_content_type_is {
 /// Main handler.
 pub async fn handler(
     req: Request<Incoming>,
-    router: &Router,
     config: &ServerConfig,
 ) -> Result<Response<Full<Bytes>>, Infallible> {
     // Verify headers
@@ -84,8 +83,11 @@ pub async fn handler(
         }
     }
 
-    let mut response = if let Ok(route_match) = router.recognize(req.uri().path()) {
-        match route_match.handler() {
+    // Copy the path, so that the request body can be consumed while the
+    // matched route still borrows from it
+    let path = req.uri().path().to_owned();
+    let mut response = if let Some(route) = recognize(&path) {
+        match route {
             Route::Index => {
                 if req.method() == Method::GET {
                     handle_index()
@@ -100,39 +102,10 @@ pub async fn handler(
                     response_405_method_not_allowed()
                 }
             }
-            Route::Backup => match *req.method() {
-                Method::GET | Method::HEAD => {
-                    handle_get_backup(
-                        &req,
-                        config,
-                        route_match
-                            .params()
-                            .find("backupId")
-                            .expect("Missing backupId param"),
-                    )
-                    .await
-                }
-                Method::PUT => {
-                    handle_put_backup(
-                        req,
-                        config,
-                        route_match
-                            .params()
-                            .find("backupId")
-                            .expect("Missing backupId param"),
-                    )
-                    .await
-                }
-                Method::DELETE => {
-                    handle_delete_backup(
-                        config,
-                        route_match
-                            .params()
-                            .find("backupId")
-                            .expect("Missing backupId param"),
-                    )
-                    .await
-                }
+            Route::Backup { backup_id } => match *req.method() {
+                Method::GET | Method::HEAD => handle_get_backup(&req, config, backup_id).await,
+                Method::PUT => handle_put_backup(req, config, backup_id).await,
+                Method::DELETE => handle_delete_backup(config, backup_id).await,
                 _ => response_405_method_not_allowed(),
             },
         }
