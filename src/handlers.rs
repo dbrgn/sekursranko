@@ -1,8 +1,11 @@
-use std::{io::Error as IoError, os::unix::fs::PermissionsExt, path::Path};
+use std::{convert::Infallible, io::Error as IoError, os::unix::fs::PermissionsExt, path::Path};
 
 use anyhow::{bail, Context};
-use futures::StreamExt;
-use hyper::{header, Body, Method, Request, Response, StatusCode};
+use http_body_util::{BodyExt, Full};
+use hyper::{
+    body::{Bytes, Incoming},
+    header, Method, Request, Response, StatusCode,
+};
 use log::{debug, error, info, trace, warn};
 use rand::Rng;
 use tokio::{fs, io::AsyncWriteExt};
@@ -58,10 +61,10 @@ macro_rules! require_content_type_is {
 
 /// Main handler.
 pub async fn handler(
-    req: Request<Body>,
+    req: Request<Incoming>,
     router: &Router,
     config: &ServerConfig,
-) -> Result<Response<Body>, hyper::Error> {
+) -> Result<Response<Full<Bytes>>, Infallible> {
     // Verify headers
     if !config.allow_browser.unwrap_or(false) {
         match req
@@ -74,7 +77,7 @@ pub async fn handler(
                 warn!("Received request without valid user agent");
                 return Ok(Response::builder()
                     .status(StatusCode::BAD_REQUEST)
-                    .body(Body::empty())
+                    .body(Full::default())
                     .expect("Could not create response"));
             }
         }
@@ -147,14 +150,14 @@ pub async fn handler(
     Ok(response)
 }
 
-fn handle_index() -> Response<Body> {
+fn handle_index() -> Response<Full<Bytes>> {
     Response::builder()
         .status(StatusCode::OK)
-        .body(Body::from(format!("{} {}", crate::NAME, crate::VERSION)))
+        .body(Full::from(format!("{} {}", crate::NAME, crate::VERSION)))
         .expect("Could not create response")
 }
 
-fn handle_config(req: &Request<Body>, config: &ServerConfig) -> Response<Body> {
+fn handle_config(req: &Request<Incoming>, config: &ServerConfig) -> Response<Full<Bytes>> {
     require_accept_starts_with!(req, "application/json");
     let config_string = match serde_json::to_string(&ServerConfigPublic::from(config)) {
         Ok(s) => s,
@@ -165,7 +168,7 @@ fn handle_config(req: &Request<Body>, config: &ServerConfig) -> Response<Body> {
     };
     Response::builder()
         .status(StatusCode::OK)
-        .body(Body::from(config_string))
+        .body(Full::from(config_string))
         .expect("Could not create response")
 }
 
@@ -180,10 +183,10 @@ fn backup_id_valid(backup_id: &str) -> bool {
 }
 
 async fn handle_get_backup(
-    req: &Request<Body>,
+    req: &Request<Incoming>,
     config: &ServerConfig,
     backup_id: &str,
-) -> Response<Body> {
+) -> Response<Full<Bytes>> {
     // Validate headers
     require_accept_is!(req, "application/octet-stream");
 
@@ -200,8 +203,8 @@ async fn handle_get_backup(
 
     let backup_path = config.backup_dir.join(backup_id);
     if backup_path.exists() && backup_path.is_file() {
-        let body: Body = if is_head_request {
-            Body::empty()
+        let body: Full<Bytes> = if is_head_request {
+            Full::default()
         } else {
             let bytes = match fs::read(backup_path).await {
                 Ok(bytes) => bytes,
@@ -231,10 +234,10 @@ async fn create_file(path: &Path) -> Result<fs::File, IoError> {
 }
 
 async fn handle_put_backup(
-    req: Request<Body>,
+    req: Request<Incoming>,
     config: &ServerConfig,
     backup_id: &str,
-) -> Response<Body> {
+) -> Response<Full<Bytes>> {
     // Validate headers
     require_content_type_is!(req, "application/octet-stream");
 
@@ -274,7 +277,7 @@ async fn handle_put_backup(
             );
             return Response::builder()
                 .status(StatusCode::PAYLOAD_TOO_LARGE)
-                .body(Body::from("{\"detail\": \"Backup is too large\"}"))
+                .body(Full::from("{\"detail\": \"Backup is too large\"}"))
                 .expect("Could not create response");
         }
     } else {
@@ -301,7 +304,7 @@ async fn handle_put_backup(
                 } else {
                     StatusCode::CREATED
                 })
-                .body(Body::empty())
+                .body(Full::default())
                 .expect("Could not create response")
         }
         Err(e) => {
@@ -314,7 +317,11 @@ async fn handle_put_backup(
 /// Store the backup to the file system.
 ///
 /// Return true if an existing backup was updated, or false if a new backup was created.
-async fn write_backup(mut body: Body, backup_id: &str, backup_path: &Path) -> anyhow::Result<bool> {
+async fn write_backup(
+    mut body: Incoming,
+    backup_id: &str,
+    backup_path: &Path,
+) -> anyhow::Result<bool> {
     // The incoming stream will be written to a temporary file. This is done to prevent
     // incomplete backups from being persisted.
     let random_ext: String = {
@@ -341,12 +348,14 @@ async fn write_backup(mut body: Body, backup_id: &str, backup_path: &Path) -> an
         .context("Could not create temporary file")?;
 
     // Write data to temporary file
-    while let Some(chunk_or_error) = body.next().await {
-        let chunk = chunk_or_error.context("Could not read body chunk")?;
-        backup_file_dl
-            .write_all(&chunk)
-            .await
-            .context("Could not write chunk to temporary file")?
+    while let Some(frame_or_error) = body.frame().await {
+        let frame = frame_or_error.context("Could not read body chunk")?;
+        if let Ok(chunk) = frame.into_data() {
+            backup_file_dl
+                .write_all(&chunk)
+                .await
+                .context("Could not write chunk to temporary file")?
+        }
     }
     trace!("Wrote temp backup for {}", backup_id);
 
@@ -360,7 +369,7 @@ async fn write_backup(mut body: Body, backup_id: &str, backup_path: &Path) -> an
     Ok(updated)
 }
 
-async fn handle_delete_backup(config: &ServerConfig, backup_id: &str) -> Response<Body> {
+async fn handle_delete_backup(config: &ServerConfig, backup_id: &str) -> Response<Full<Bytes>> {
     // Validate params
     if !backup_id_valid(backup_id) {
         warn!(
@@ -394,7 +403,7 @@ async fn handle_delete_backup(config: &ServerConfig, backup_id: &str) -> Respons
     match fs::remove_file(&backup_path).await {
         Ok(_) => Response::builder()
             .status(StatusCode::NO_CONTENT)
-            .body(Body::empty())
+            .body(Full::default())
             .expect("Could not create response"),
         Err(e) => {
             error!("Could not delete backup at {:?}: {}", backup_path, e);
@@ -403,31 +412,31 @@ async fn handle_delete_backup(config: &ServerConfig, backup_id: &str) -> Respons
     }
 }
 
-fn response_400_bad_request(body: &'static str) -> Response<Body> {
+fn response_400_bad_request(body: &'static str) -> Response<Full<Bytes>> {
     Response::builder()
         .status(StatusCode::BAD_REQUEST)
-        .body(Body::from(body))
+        .body(Full::from(body))
         .expect("Could not create response")
 }
 
-fn response_404_not_found() -> Response<Body> {
+fn response_404_not_found() -> Response<Full<Bytes>> {
     Response::builder()
         .status(StatusCode::NOT_FOUND)
-        .body(Body::empty())
+        .body(Full::default())
         .expect("Could not create response")
 }
 
-fn response_405_method_not_allowed() -> Response<Body> {
+fn response_405_method_not_allowed() -> Response<Full<Bytes>> {
     Response::builder()
         .status(StatusCode::METHOD_NOT_ALLOWED)
-        .body(Body::empty())
+        .body(Full::default())
         .expect("Could not create response")
 }
 
-fn response_500_internal_server_error() -> Response<Body> {
+fn response_500_internal_server_error() -> Response<Full<Bytes>> {
     Response::builder()
         .status(StatusCode::INTERNAL_SERVER_ERROR)
-        .body(Body::from("{\"detail\": \"Internal server error\"}"))
+        .body(Full::from("{\"detail\": \"Internal server error\"}"))
         .expect("Could not create response")
 }
 

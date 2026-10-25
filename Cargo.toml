@@ -9,15 +9,16 @@ edition = "2018"
 anyhow = "1"
 clap = { version = "4", features = ["std", "help", "usage", "error-context", "derive", "cargo"], default-features = false }
 env_logger = "0.10"
-futures = "0.3"
-hyper = { version = "0.14", features = ["http1", "server", "runtime", "stream"] }
+http-body-util = "0.1"
+hyper = { version = "1", features = ["http1", "server"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
 log = "0.4"
 rand = "0.8"
 route-recognizer = "0.3"
 serde = "1.0"
 serde_derive = "*"
 serde_json = "1.0"
-tokio = { version = "1", features = ["rt-multi-thread", "macros",  "fs", "io-util"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros",  "fs", "io-util", "net", "time"] }
 toml = "0.7"
 
 [dev-dependencies]

@@ -7,7 +7,7 @@ mod service;
 
 pub use crate::{
     config::{ServerConfig, ServerConfigPublic},
-    service::{BackupService, MakeBackupService},
+    service::{serve, BackupService},
 };
 
 pub static NAME: &str = "Sekurŝranko";

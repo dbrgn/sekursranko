@@ -1,10 +1,9 @@
 use std::path::PathBuf;
 
 use clap::{self, Parser};
-use hyper::Server;
-use log::error;
+use tokio::net::TcpListener;
 
-use sekursranko::{MakeBackupService, ServerConfig};
+use sekursranko::ServerConfig;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
@@ -36,13 +35,12 @@ async fn main() {
         config
     );
 
-    // Create server
-    let service = MakeBackupService::new(config);
-    let server = Server::bind(&addr).serve(service);
+    // Bind listener
+    let listener = TcpListener::bind(addr).await.unwrap_or_else(|e| {
+        eprintln!("Could not bind to {}: {}", addr, e);
+        ::std::process::exit(1);
+    });
 
     // Serve
-    if let Err(e) = server.await {
-        error!("Server error: {}", e);
-        std::process::exit(1);
-    };
+    sekursranko::serve(listener, config).await;
 }
