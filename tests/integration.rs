@@ -86,6 +86,11 @@ impl TestServer {
     }
 }
 
+/// Return the value of a response header, if present.
+fn header_value(res: &Response, name: header::HeaderName) -> Option<&str> {
+    res.headers().get(name).map(|v| v.to_str().unwrap())
+}
+
 macro_rules! user_agent_required {
     ($name:ident, $url:expr) => {
         #[test]
@@ -139,9 +144,36 @@ fn index_ok() {
         .send()
         .unwrap();
     assert_eq!(res.status().as_u16(), 200);
+    assert_eq!(
+        header_value(&res, header::CONTENT_TYPE),
+        Some("text/plain; charset=utf-8")
+    );
+    assert_eq!(
+        header_value(&res, header::X_CONTENT_TYPE_OPTIONS),
+        Some("nosniff")
+    );
     let text = res.text().unwrap();
     println!("{}", text);
     assert_eq!(text, format!("Sekurŝranko {}", env!("CARGO_PKG_VERSION")));
+}
+
+#[test]
+fn config_ok() {
+    let TestServer { base_url, .. } = TestServer::new();
+    let res = Client::new()
+        .get(format!("{}/config", base_url))
+        .header(header::USER_AGENT, "Threema")
+        .header(header::ACCEPT, "application/json")
+        .send()
+        .unwrap();
+    assert_eq!(res.status().as_u16(), 200);
+    assert_eq!(
+        header_value(&res, header::CONTENT_TYPE),
+        Some("application/json")
+    );
+    let text = res.text().unwrap();
+    println!("{}", text);
+    assert_eq!(text, "{\"maxBackupBytes\":524288,\"retentionDays\":180}");
 }
 
 #[test]
@@ -153,6 +185,10 @@ fn config_require_json() {
         .send()
         .unwrap();
     assert_eq!(res.status().as_u16(), 400);
+    assert_eq!(
+        header_value(&res, header::CONTENT_TYPE),
+        Some("application/json")
+    );
     let text = res.text().unwrap();
     println!("{}", text);
     assert_eq!(text, "{\"detail\": \"Invalid accept header\"}");
@@ -185,6 +221,11 @@ fn backup_download_not_found() {
         .send()
         .unwrap();
     assert_eq!(res.status().as_u16(), 404);
+    assert_eq!(header_value(&res, header::CONTENT_TYPE), None);
+    assert_eq!(
+        header_value(&res, header::X_CONTENT_TYPE_OPTIONS),
+        Some("nosniff")
+    );
     let text = res.text().unwrap();
     println!("{}", text);
     assert_eq!(text, "");
@@ -223,6 +264,11 @@ fn backup_download_ok() {
         .send()
         .unwrap();
     assert_eq!(res.status().as_u16(), 200);
+    assert_eq!(
+        header_value(&res, header::CONTENT_TYPE),
+        Some("application/octet-stream")
+    );
+    assert_eq!(header_value(&res, header::CONTENT_LENGTH), Some("10"));
     let text = res.text().unwrap();
     println!("{}", text);
     assert_eq!(text, "tre sekura");
@@ -245,6 +291,11 @@ fn backup_download_present_head() {
         .send()
         .unwrap();
     assert_eq!(res.status().as_u16(), 200);
+    assert_eq!(
+        header_value(&res, header::CONTENT_TYPE),
+        Some("application/octet-stream")
+    );
+    assert_eq!(header_value(&res, header::CONTENT_LENGTH), Some("10"));
     let text = res.text().unwrap();
     println!("{}", text);
     assert_eq!(text, "");
@@ -325,6 +376,10 @@ fn backup_upload_payload_too_large() {
         .send()
         .unwrap();
     assert_eq!(res.status().as_u16(), 413);
+    assert_eq!(
+        header_value(&res, header::CONTENT_TYPE),
+        Some("application/json")
+    );
     let text = res.text().unwrap();
     println!("{}", text);
     assert_eq!(text, "{\"detail\": \"Backup is too large\"}");
