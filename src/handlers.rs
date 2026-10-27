@@ -184,7 +184,7 @@ async fn handle_get_backup(
             "Download of backup with invalid id was requested: {}",
             log_id(backup_id)
         );
-        return response_404_not_found();
+        return response_400_bad_request("{\"detail\": \"Invalid backup ID\"}");
     }
 
     let backup_path = config.backup_dir.join(backup_id);
