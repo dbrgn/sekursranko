@@ -112,8 +112,12 @@ pub async fn handler(
         response_404_not_found()
     };
 
+    let headers = response.headers_mut();
+    headers.insert(
+        header::X_CONTENT_TYPE_OPTIONS,
+        header::HeaderValue::from_static("nosniff"),
+    );
     if config.allow_browser.unwrap_or(false) {
-        let headers = response.headers_mut();
         headers.insert(
             header::ACCESS_CONTROL_ALLOW_ORIGIN,
             header::HeaderValue::from_static("*"),
@@ -126,6 +130,7 @@ pub async fn handler(
 fn handle_index() -> Response<Full<Bytes>> {
     Response::builder()
         .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "text/plain; charset=utf-8")
         .body(Full::from(format!("{} {}", crate::NAME, crate::VERSION)))
         .expect("Could not create response")
 }
@@ -141,6 +146,7 @@ fn handle_config(req: &Request<Incoming>, config: &ServerConfig) -> Response<Ful
     };
     Response::builder()
         .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "application/json")
         .body(Full::from(config_string))
         .expect("Could not create response")
 }
@@ -181,12 +187,24 @@ async fn handle_get_backup(
         return response_404_not_found();
     }
 
-    let is_head_request = req.method() == Method::HEAD;
-
     let backup_path = config.backup_dir.join(backup_id);
     if backup_path.exists() && backup_path.is_file() {
-        let body: Full<Bytes> = if is_head_request {
-            Full::default()
+        let builder = Response::builder()
+            .status(StatusCode::OK)
+            .header(header::CONTENT_TYPE, "application/octet-stream");
+        let response = if req.method() == Method::HEAD {
+            // A HEAD response has no body, so the content length of the
+            // backup must be set explicitly
+            let length = match fs::metadata(&backup_path).await {
+                Ok(metadata) => metadata.len(),
+                Err(e) => {
+                    error!("Could not read file metadata: {}", e);
+                    return response_500_internal_server_error();
+                }
+            };
+            builder
+                .header(header::CONTENT_LENGTH, length)
+                .body(Full::default())
         } else {
             let bytes = match fs::read(backup_path).await {
                 Ok(bytes) => bytes,
@@ -195,12 +213,9 @@ async fn handle_get_backup(
                     return response_500_internal_server_error();
                 }
             };
-            bytes.into()
+            builder.body(Full::from(bytes))
         };
-        Response::builder()
-            .status(StatusCode::OK)
-            .body(body)
-            .expect("Could not create response")
+        response.expect("Could not create response")
     } else {
         response_404_not_found()
     }
@@ -250,6 +265,7 @@ async fn handle_put_backup(
             );
             return Response::builder()
                 .status(StatusCode::PAYLOAD_TOO_LARGE)
+                .header(header::CONTENT_TYPE, "application/json")
                 .body(Full::from("{\"detail\": \"Backup is too large\"}"))
                 .expect("Could not create response");
         }
@@ -391,6 +407,7 @@ async fn handle_delete_backup(config: &ServerConfig, backup_id: &str) -> Respons
 fn response_400_bad_request(body: &'static str) -> Response<Full<Bytes>> {
     Response::builder()
         .status(StatusCode::BAD_REQUEST)
+        .header(header::CONTENT_TYPE, "application/json")
         .body(Full::from(body))
         .expect("Could not create response")
 }
@@ -412,6 +429,7 @@ fn response_405_method_not_allowed() -> Response<Full<Bytes>> {
 fn response_500_internal_server_error() -> Response<Full<Bytes>> {
     Response::builder()
         .status(StatusCode::INTERNAL_SERVER_ERROR)
+        .header(header::CONTENT_TYPE, "application/json")
         .body(Full::from("{\"detail\": \"Internal server error\"}"))
         .expect("Could not create response")
 }
